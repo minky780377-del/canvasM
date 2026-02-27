@@ -19,8 +19,15 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'CANVASM TTS STUDIO',
-  description: 'Professional Text-to-Speech System',
+  title: 'canvasM | AI TTS Studio',
+  description: 'AI-powered text-to-speech studio with Gemini 3.1 & 2.5 TTS engine.',
+  manifest: '/manifest.json',
+  themeColor: '#10b981',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'canvasM',
+  },
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
