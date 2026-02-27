@@ -28,6 +28,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'canvasM',
   },
+  icons: {
+    apple: '/icon.svg',
+  },
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
