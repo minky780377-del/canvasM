@@ -1,0 +1,5 @@
+{
+  "name": "CANVASM TTS STUDIO",
+  "description": "A professional text-to-speech system that converts text into high-quality audio using Gemini.",
+  "requestFramePermissions": []
+}

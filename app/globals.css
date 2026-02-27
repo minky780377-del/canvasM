@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-spin-slow: spin 3s linear infinite;
+  --font-display: var(--font-display);
+}
