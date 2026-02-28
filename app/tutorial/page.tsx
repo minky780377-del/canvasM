@@ -76,35 +76,35 @@ export default function TutorialPage() {
           </button>
         </header>
 
-        <section className="space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-widest">
+        <section className="space-y-4 sm:space-y-6">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 sm:px-3 sm:py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[9px] sm:text-[10px] font-bold uppercase tracking-widest">
             Interactive Guide
           </div>
-          <h1 className="text-4xl font-black tracking-tighter font-display uppercase">Mastering the Studio</h1>
-          <p className="text-zinc-500 text-lg max-w-2xl leading-relaxed">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tighter font-display uppercase">Mastering the Studio</h1>
+          <p className="text-zinc-500 text-sm sm:text-base md:text-lg max-w-2xl leading-relaxed">
             CANVASM TTS STUDIO combines the intelligence of Gemini 3.1 with the specialized audio capabilities of 2.5. 
             Click on any step below to see detailed instructions.
           </p>
         </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {steps.map((step) => (
             <button
               key={step.id}
               onClick={() => setActiveStep(activeStep === step.id ? null : step.id)}
-              className={`p-8 rounded-3xl border transition-all text-left group relative overflow-hidden ${
+              className={`p-5 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl border transition-all text-left group relative overflow-hidden ${
                 activeStep === step.id
                   ? theme === 'dark' ? 'bg-zinc-900 border-emerald-500/50 ring-1 ring-emerald-500/20' : 'bg-white border-emerald-500/50 ring-1 ring-emerald-500/20'
                   : theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-200 hover:border-zinc-300'
               }`}
             >
-              <div className="relative z-10 space-y-4">
-                <div className={`w-12 h-12 rounded-2xl ${step.color} flex items-center justify-center transition-transform group-hover:scale-110`}>
-                  {step.icon}
+              <div className="relative z-10 space-y-3 sm:space-y-4">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl ${step.color} flex items-center justify-center transition-transform group-hover:scale-110`}>
+                  {React.cloneElement(step.icon, { className: 'w-5 h-5 sm:w-6 sm:h-6' })}
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-xl font-bold font-display uppercase tracking-wider">{step.title}</h3>
-                  <p className="text-zinc-500 text-sm leading-relaxed">{step.summary}</p>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <h3 className="text-base sm:text-lg md:text-xl font-bold font-display uppercase tracking-wider">{step.title}</h3>
+                  <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">{step.summary}</p>
                 </div>
 
                 <AnimatePresence>
@@ -115,7 +115,7 @@ export default function TutorialPage() {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className={`pt-4 mt-4 border-t ${theme === 'dark' ? 'border-zinc-800' : 'border-zinc-100'} text-sm text-zinc-400 leading-relaxed italic`}>
+                      <div className={`pt-3 mt-3 sm:pt-4 sm:mt-4 border-t ${theme === 'dark' ? 'border-zinc-800' : 'border-zinc-100'} text-xs sm:text-sm text-zinc-400 leading-relaxed italic`}>
                         {step.details}
                       </div>
                     </motion.div>
@@ -124,7 +124,7 @@ export default function TutorialPage() {
               </div>
               
               {activeStep !== step.id && (
-                <div className="absolute bottom-4 right-6 text-[10px] font-bold text-zinc-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute bottom-3 right-4 sm:bottom-4 sm:right-6 text-[9px] sm:text-[10px] font-bold text-zinc-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                   Click to expand
                 </div>
               )}
@@ -132,15 +132,15 @@ export default function TutorialPage() {
           ))}
         </div>
 
-        <div className={`p-8 rounded-3xl border ${theme === 'dark' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-200'} flex flex-col md:flex-row items-center gap-6`}>
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
-            <MousePointer2 className="w-8 h-8" />
+        <div className={`p-5 sm:p-6 md:p-8 rounded-2xl md:rounded-3xl border ${theme === 'dark' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-200'} flex flex-col md:flex-row items-start md:items-center gap-4 sm:gap-6`}>
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+            <MousePointer2 className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
-          <div className="space-y-2">
-            <h4 className="text-lg font-bold font-display uppercase tracking-wider text-emerald-500">Pro Tip: Selection Mode</h4>
-            <p className="text-zinc-500 text-sm leading-relaxed">
+          <div className="space-y-1.5 sm:space-y-2">
+            <h4 className="text-sm sm:text-base md:text-lg font-bold font-display uppercase tracking-wider text-emerald-500">Pro Tip: Selection Mode</h4>
+            <p className="text-zinc-500 text-xs sm:text-sm leading-relaxed">
               Don&apos;t want to generate the whole script? Highlight any text within the editor to instantly see the 
-              <span className="text-emerald-400 font-bold mx-1 uppercase tracking-widest text-[10px]">Generate Specific</span> 
+              <span className="text-emerald-400 font-bold mx-1 uppercase tracking-widest text-[9px] sm:text-[10px]">Generate Specific</span> 
               button. This saves time and allows you to focus on the perfect delivery for key phrases.
             </p>
           </div>
