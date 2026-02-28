@@ -1,4 +1,4 @@
-import type {Metadata} from 'next';
+import type {Metadata, Viewport} from 'next';
 import { Inter, JetBrains_Mono, Montserrat } from 'next/font/google';
 import './globals.css'; // Global styles
 
@@ -18,11 +18,14 @@ const jetbrainsMono = JetBrains_Mono({
   variable: '--font-mono',
 });
 
+export const viewport: Viewport = {
+  themeColor: '#10b981',
+};
+
 export const metadata: Metadata = {
   title: 'canvasM | AI TTS Studio',
   description: 'AI-powered text-to-speech studio with Gemini 3.1 & 2.5 TTS engine.',
   manifest: '/manifest.json',
-  themeColor: '#10b981',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',

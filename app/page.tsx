@@ -2,8 +2,9 @@
 
 import React, { useState, useRef } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle } from 'lucide-react';
+import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail } from 'lucide-react';
 import Link from 'next/link';
+import PartnershipForm from './PartnershipForm';
 
 const VOICES = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
 
@@ -80,6 +81,7 @@ export default function VoiceActorApp() {
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [tempKey, setTempKey] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [showPartnership, setShowPartnership] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const selectionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -419,13 +421,13 @@ ${textToUse}`;
 
   return (
     <div 
-      className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-zinc-50 text-zinc-900'} p-4 sm:p-6 selection:bg-zinc-800 overflow-x-hidden`}
+      className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-[#F8F9FA] text-[#444444]'} p-4 sm:p-6 selection:bg-zinc-800 overflow-x-hidden`}
       onDragStart={(e) => e.preventDefault()}
     >
-      <div className="max-w-5xl mx-auto space-y-4 sm:space-y-8">
-        <header className={`flex flex-col sm:flex-row items-center justify-between border-b ${theme === 'dark' ? 'border-zinc-800' : 'border-zinc-200'} pb-4 sm:pb-4 pt-2 sm:pt-4 gap-3 sm:gap-4`}>
+      <div className="max-w-5xl mx-auto space-y-6 sm:space-y-10">
+        <header className={`flex flex-col sm:flex-row items-center justify-between border-b ${theme === 'dark' ? 'border-zinc-800' : 'border-[#E0E0E0]'} pb-4 sm:pb-4 pt-2 sm:pt-4 gap-3 sm:gap-4`}>
           <div className="flex items-start gap-1.5 sm:gap-2 w-full sm:w-auto justify-start">
-            <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border flex items-center justify-center shadow-inner p-2 sm:p-2.5 shrink-0 -mt-1 sm:mt-0`}>
+            <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border flex items-center justify-center p-2 sm:p-2.5 shrink-0 -mt-1 sm:mt-0`}>
               <Logo className="w-full h-full text-emerald-400" />
             </div>
             <div className="flex flex-col justify-start overflow-hidden pt-1 sm:pt-3.5">
@@ -436,60 +438,72 @@ ${textToUse}`;
             </div>
           </div>
           <div className="flex flex-row sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-3 w-full sm:w-auto">
-            <div className="flex items-center gap-1.5 sm:gap-3">
-              <Link
-                href="/tutorial"
-                className={`p-2 sm:p-3 rounded-xl border transition-all ${
-                  theme === 'dark' 
-                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' 
-                    : 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
-                }`}
-                title="Tutorial"
-              >
-                <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-              </Link>
-
-              <button
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`p-2 sm:p-3 rounded-xl border transition-all ${
-                  theme === 'dark' 
-                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' 
-                    : 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
-                }`}
-                title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              >
-                {theme === 'dark' ? <Sun className="w-5 h-5 sm:w-6 sm:h-6" /> : <Moon className="w-5 h-5 sm:w-6 sm:h-6" />}
-              </button>
-
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   setTempKey(apiKey);
                   setShowKeyModal(true);
                 }}
-                className={`p-2 sm:p-3 rounded-xl border transition-all relative group ${
+                className={`p-2.5 rounded-xl border transition-all relative group ${
                   apiKey 
                     ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
-                    : theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' : 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
+                    : theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-[#222222] hover:border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
                 }`}
                 title={apiKey ? "API Key is active." : "Please enter your API Key."}
               >
-                <Key className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Key className="w-5 h-5" />
                 {/* Tooltip */}
-                <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 ${theme === 'dark' ? 'bg-zinc-800 text-zinc-200 border-zinc-700' : 'bg-white text-zinc-800 border-zinc-200'} text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border`}>
+                <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 ${theme === 'dark' ? 'bg-zinc-800 text-zinc-200 border-zinc-700' : 'bg-white text-[#444444] border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border`}>
                   {apiKey ? "API Key is active." : "Please enter your API Key."}
                 </div>
               </button>
 
               <button 
                 onClick={() => setShowSettings(!showSettings)}
-                className={`p-2 sm:p-3 rounded-xl border transition-all ${
+                className={`p-2.5 rounded-xl border transition-all ${
                   showSettings 
                     ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
-                    : theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' : 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
+                    : theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-[#222222] hover:border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
                 }`}
                 title="Voice Settings"
               >
-                <Settings className={`w-5 h-5 sm:w-6 sm:h-6 ${showSettings ? 'animate-spin-slow' : ''}`} />
+                <Settings className={`w-5 h-5 ${showSettings ? 'animate-spin-slow' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className={`p-2.5 rounded-xl border transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' 
+                    : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-[#222222] hover:border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
+                }`}
+                title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
+              <Link
+                href="/tutorial"
+                className={`p-2.5 rounded-xl border transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' 
+                    : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-[#222222] hover:border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
+                }`}
+                title="Tutorial"
+              >
+                <HelpCircle className="w-5 h-5" />
+              </Link>
+
+              <button
+                onClick={() => setShowPartnership(true)}
+                className={`p-2.5 rounded-xl border transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/30' 
+                    : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-teal-700 hover:border-teal-700/30 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
+                }`}
+                title="Contact Developer"
+              >
+                <Mail className="w-5 h-5" />
               </button>
             </div>
             <div className="hidden sm:flex flex-col items-end gap-1 mt-auto">
@@ -502,35 +516,35 @@ ${textToUse}`;
         {/* API Key Modal */}
         {showKeyModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className={`${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200`}>
+            <div className={`${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-500/10 rounded-lg">
                     <Key className="w-5 h-5 text-emerald-400" />
                   </div>
-                  <h3 className={`font-bold font-display uppercase tracking-widest text-sm ${theme === 'dark' ? 'text-zinc-100' : 'text-zinc-900'}`}>API Key Management</h3>
+                  <h3 className={`font-bold font-display uppercase tracking-widest text-sm ${theme === 'dark' ? 'text-zinc-100' : 'text-[#222222]'}`}>API Key Management</h3>
                 </div>
                 <button 
                   onClick={() => setShowKeyModal(false)}
-                  className={`p-2 ${theme === 'dark' ? 'hover:bg-zinc-800 text-zinc-500' : 'hover:bg-zinc-100 text-zinc-400'} rounded-lg transition-colors`}
+                  className={`p-2 ${theme === 'dark' ? 'hover:bg-zinc-800 text-zinc-500' : 'hover:bg-zinc-100 text-[#444444]'} rounded-lg transition-colors`}
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <p className="text-xs text-zinc-400 leading-relaxed">
+                <p className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-zinc-400' : 'text-[#444444]'}`}>
                   Please enter your Gemini API Key. It will be stored safely in your browser&apos;s local storage.
                 </p>
                 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest font-display">Your API Key</label>
+                  <label className={`text-[10px] font-bold uppercase tracking-widest font-display ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Your API Key</label>
                   <input
                     type="password"
                     value={tempKey}
                     onChange={(e) => setTempKey(e.target.value)}
                     placeholder="Enter your API key here..."
-                    className={`w-full ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800 text-zinc-200' : 'bg-zinc-50 border-zinc-200 text-zinc-900'} border rounded-xl px-4 py-3 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
+                    className={`w-full ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800 text-zinc-200' : 'bg-white border-[#E0E0E0] text-[#444444] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-xl px-4 py-3 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
                   />
                 </div>
               </div>
@@ -538,14 +552,14 @@ ${textToUse}`;
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={handleSaveKey}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest"
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest shadow-[0_2px_4px_rgba(0,0,0,0.05)]"
                 >
                   Save Key
                 </button>
                 {apiKey && (
                   <button
                     onClick={handleDeleteKey}
-                    className={`px-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-400' : 'bg-zinc-100 border-zinc-200 text-zinc-500'} hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest border`}
+                    className={`px-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-400' : 'bg-white border-[#E0E0E0] text-[#444444] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest border`}
                   >
                     Delete
                   </button>
@@ -556,9 +570,9 @@ ${textToUse}`;
         )}
 
         {showSettings && (
-          <div className={`${theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-2xl p-6 animate-in fade-in slide-in-from-top-4 duration-300`}>
+          <div className={`${theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800' : 'bg-white border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-2xl p-6 animate-in fade-in slide-in-from-top-4 duration-300`}>
             <div className="max-w-3xl mx-auto space-y-8">
-              <div className={`flex items-center gap-3 ${theme === 'dark' ? 'text-zinc-100 border-zinc-800/50' : 'text-zinc-900 border-zinc-200'} pb-4 border-b`}>
+              <div className={`flex items-center gap-3 ${theme === 'dark' ? 'text-zinc-100 border-zinc-800/50' : 'text-[#222222] border-[#E0E0E0]'} pb-4 border-b`}>
                 <Settings className="w-5 h-5 text-zinc-400" />
                 <h2 className="font-bold font-display uppercase tracking-widest text-sm">Voice Settings</h2>
               </div>
@@ -566,7 +580,7 @@ ${textToUse}`;
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] font-display">Audio Diagnostics</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-[0.2em] font-display ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Audio Diagnostics</p>
                   </div>
                   
                   <div className="space-y-4">
@@ -574,14 +588,14 @@ ${textToUse}`;
                       <button
                         onClick={playTestSound}
                         disabled={isTesting}
-                        className={`w-full py-2.5 px-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200'} rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-2 border`}
+                        className={`w-full py-2.5 px-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-white border-[#E0E0E0] text-[#444444] hover:bg-zinc-50 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-2 border`}
                       >
                         {isTesting ? "Playing..." : "🔊 Test 1 (Web Audio)"}
                       </button>
                       <button
                         onClick={playAltTestSound}
                         disabled={isTestingAlt}
-                        className={`w-full py-2.5 px-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200'} rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-2 border`}
+                        className={`w-full py-2.5 px-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-white border-[#E0E0E0] text-[#444444] hover:bg-zinc-50 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-2 border`}
                       >
                         {isTestingAlt ? "Playing..." : "🔔 Test 2 (External Audio)"}
                       </button>
@@ -590,13 +604,13 @@ ${textToUse}`;
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-[10px] font-bold text-emerald-400/70 uppercase tracking-[0.2em] font-display">Troubleshooting</p>
-                  <ul className="text-[11px] text-zinc-500 space-y-2 list-disc pl-3 leading-relaxed">
-                    <li>Check if the <strong className="text-zinc-400">speaker icon</strong> at the top of the browser tab is muted.</li>
-                    <li>Ensure your device&apos;s <strong className="text-zinc-400">system volume</strong> is turned on.</li>
-                    <li>Click the <strong className="text-zinc-400">lock icon</strong> on the left of the address bar to ensure sound permissions are &apos;Allow&apos;.</li>
+                  <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-[0.2em] font-display">Troubleshooting</p>
+                  <ul className={`text-[11px] space-y-2 list-disc pl-3 leading-relaxed ${theme === 'dark' ? 'text-zinc-500' : 'text-[#444444]'}`}>
+                    <li>Check if the <strong className={theme === 'dark' ? 'text-zinc-400' : 'text-[#222222]'}>speaker icon</strong> at the top of the browser tab is muted.</li>
+                    <li>Ensure your device&apos;s <strong className={theme === 'dark' ? 'text-zinc-400' : 'text-[#222222]'}>system volume</strong> is turned on.</li>
+                    <li>Click the <strong className={theme === 'dark' ? 'text-zinc-400' : 'text-[#222222]'}>lock icon</strong> on the left of the address bar to ensure sound permissions are &apos;Allow&apos;.</li>
                     <li>Check if you are connected to Bluetooth earphones or other output devices.</li>
-                    <li>If you hear noise in editing tools like Premiere Pro, try applying a <strong className="text-emerald-400">De-noise</strong> effect.</li>
+                    <li>If you hear noise in editing tools like Premiere Pro, try applying a <strong className="text-emerald-500">De-noise</strong> effect.</li>
                   </ul>
                 </div>
               </div>
@@ -614,7 +628,7 @@ ${textToUse}`;
                       value={tone}
                       onChange={(e) => setTone(e.target.value)}
                       placeholder="TONE & MOOD"
-                      className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-4 py-1.5 text-xs sm:text-[10px] font-bold font-display uppercase tracking-[0.1em] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-colors"
+                      className={`w-full rounded-xl px-4 py-3 text-xs sm:text-[10px] font-bold font-display uppercase tracking-[0.1em] focus:outline-none focus:border-emerald-500/50 transition-colors border ${theme === 'dark' ? 'bg-zinc-900/80 border-zinc-800 text-zinc-200 placeholder:text-zinc-600' : 'bg-white border-[#E0E0E0] text-[#444444] placeholder:text-[#888888] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'}`}
                     />
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0 px-1">
@@ -631,36 +645,44 @@ ${textToUse}`;
 
                 <div className="block sm:flex gap-4">
                   {/* Left Sidebar for Voices */}
-                  <div className="hidden sm:flex flex-col gap-2 w-28 shrink-0">
-                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] font-display mb-1 text-center">Voices</label>
+                  <div className="hidden sm:flex flex-col gap-3 w-32 shrink-0">
+                    <label className={`text-[10px] font-bold uppercase tracking-[0.05em] font-display mb-1 text-center ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Voices</label>
                     {VOICES.map((v) => (
                       <button
                         key={v}
                         onClick={() => setVoice(v)}
-                        className={`px-3 py-3 rounded-xl text-[11px] font-bold font-display transition-all text-center uppercase tracking-wider ${
+                        className={`px-3 py-3 rounded-xl text-[11px] font-bold font-display transition-all text-center uppercase tracking-wider border shadow-[0_2px_4px_rgba(0,0,0,0.05)] ${
                           voice === v 
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
-                            : theme === 'dark' ? 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' : 'bg-white border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
+                            ? theme === 'dark' 
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                              : 'bg-teal-50 text-teal-700 border-teal-200'
+                            : theme === 'dark' 
+                              ? 'bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' 
+                              : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-[#222222] hover:border-[#E0E0E0]'
                         }`}
                       >
                         {v}
                       </button>
                     ))}
 
-                    <div className={`pt-4 mt-2 border-t ${theme === 'dark' ? 'border-zinc-800/50' : 'border-zinc-200'} space-y-2`}>
+                    <div className={`pt-6 mt-4 border-t ${theme === 'dark' ? 'border-zinc-800/50' : 'border-[#E0E0E0]'} space-y-3`}>
                       <button
                         onClick={handleGenerate}
                         disabled={isGenerating || !text.trim()}
-                        className="w-full flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 font-bold py-2 px-1 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed border border-zinc-800 shadow-lg group"
+                        className={`w-full flex flex-col items-center justify-center gap-2 py-3 px-1 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_2px_4px_rgba(0,0,0,0.05)] group ${
+                          theme === 'dark'
+                            ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950'
+                            : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950'
+                        }`}
                       >
-                        <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <div className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                           {isGenerating ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                            <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
                           ) : (
-                            <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <Volume2 className="w-4 h-4 text-zinc-950" />
                           )}
                         </div>
-                        <span className="text-[8px] font-bold font-display uppercase tracking-[0.2em]">
+                        <span className="text-[10px] font-bold font-display uppercase tracking-[0.05em]">
                           {isGenerating ? "Wait..." : "Generate"}
                         </span>
                       </button>
@@ -668,26 +690,26 @@ ${textToUse}`;
                       <button
                         onClick={stopAudio}
                         disabled={!isPlaying && !isGenerating}
-                        className="w-full flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-zinc-800 text-red-500 font-bold py-2 px-1 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed border border-zinc-800 shadow-lg group"
+                        className={`w-full flex flex-col items-center justify-center gap-2 py-3 px-1 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed border shadow-[0_2px_4px_rgba(0,0,0,0.05)] group bg-transparent border-red-500 text-red-500 hover:bg-red-500/10`}
                       >
-                        <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Square className="w-3.5 h-3.5 fill-current text-red-500" />
+                        <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Square className="w-4 h-4 fill-current text-red-500" />
                         </div>
-                        <span className="text-[8px] font-bold font-display uppercase tracking-[0.2em]">Stop</span>
+                        <span className="text-[10px] font-bold font-display uppercase tracking-[0.05em]">Stop</span>
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex-1 relative space-y-1.5 sm:space-y-2">
+                  <div className="flex-1 relative space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-[9px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] font-display block">Script</label>
+                      <label className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.05em] font-display block ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Script</label>
                       <button 
                         onClick={() => {
                           setText('');
                           setAudioData(null);
                           setStatus('Editor cleared.');
                         }}
-                        className="text-[8px] sm:text-[9px] font-bold text-zinc-500 hover:text-red-400 uppercase tracking-widest transition-colors flex items-center gap-1"
+                        className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.05em] transition-colors flex items-center gap-1 ${theme === 'dark' ? 'text-zinc-500 hover:text-red-400' : 'text-[#444444] hover:text-red-500'}`}
                       >
                         <X className="w-2.5 h-2.5" />
                         Clear
@@ -700,53 +722,61 @@ ${textToUse}`;
                       onSelect={handleSelect}
                       maxLength={1500}
                       placeholder="Enter the text to be read here..."
-                      className={`w-full h-[220px] sm:h-[400px] ${theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800 text-zinc-200' : 'bg-white border-zinc-200 text-zinc-900'} border rounded-2xl p-4 sm:p-6 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 resize-none transition-all text-base sm:text-lg leading-relaxed`}
+                      className={`w-full h-[220px] sm:h-[400px] ${theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800 text-zinc-200' : 'bg-white border-[#E0E0E0] text-[#444444] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-2xl p-5 sm:p-8 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 resize-none transition-all text-base sm:text-lg leading-relaxed`}
                     />
 
                     {/* Mobile Voice Selection and Generate Button */}
-                    <div className="sm:hidden flex flex-col gap-3 mt-3">
-                      <div className="grid grid-cols-5 gap-1 pb-1">
+                    <div className="sm:hidden flex flex-col gap-4 mt-4">
+                      <div className="grid grid-cols-5 gap-2 pb-1">
                         {VOICES.map((v) => (
                           <button
                             key={v}
                             onClick={() => setVoice(v)}
-                            className={`py-1.5 rounded-lg text-[9px] font-bold font-display transition-all border text-center uppercase tracking-tighter ${
+                            className={`py-2 rounded-xl text-[9px] font-bold font-display transition-all border text-center uppercase tracking-tighter shadow-[0_2px_4px_rgba(0,0,0,0.05)] ${
                               voice === v 
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                                : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                                ? theme === 'dark'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-teal-50 text-teal-700 border-teal-200'
+                                : theme === 'dark'
+                                  ? 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                                  : 'bg-white border-[#E0E0E0] text-[#444444]'
                             }`}
                           >
                             {v}
                           </button>
                         ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-3">
                         <button
                           onClick={handleGenerate}
                           disabled={isGenerating || !text.trim()}
-                          className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-emerald-400 font-bold py-2.5 rounded-xl transition-all disabled:opacity-50 border border-zinc-800 shadow-lg"
+                          className={`flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl transition-all disabled:opacity-50 shadow-[0_2px_4px_rgba(0,0,0,0.05)] ${
+                            theme === 'dark'
+                              ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950'
+                              : 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950'
+                          }`}
                         >
                           {isGenerating ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                            <Loader2 className="w-4 h-4 animate-spin text-zinc-950" />
                           ) : (
-                            <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <Volume2 className="w-4 h-4 text-zinc-950" />
                           )}
-                          <span className="text-[10px] uppercase tracking-widest">{isGenerating ? "Wait" : "Generate"}</span>
+                          <span className="text-[10px] uppercase tracking-[0.05em]">{isGenerating ? "Wait" : "Generate"}</span>
                         </button>
                         <button
                           onClick={stopAudio}
                           disabled={!isPlaying && !isGenerating}
-                          className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-red-500 font-bold py-2.5 rounded-xl transition-all disabled:opacity-30 border border-zinc-800 shadow-lg"
+                          className={`flex items-center justify-center gap-2 font-bold py-3.5 rounded-xl transition-all disabled:opacity-30 border shadow-[0_2px_4px_rgba(0,0,0,0.05)] bg-transparent border-red-500 text-red-500 hover:bg-red-500/10`}
                         >
-                          <Square className="w-3.5 h-3.5 fill-current text-red-500" />
-                          <span className="text-[10px] uppercase tracking-widest">Stop</span>
+                          <Square className="w-4 h-4 fill-current text-red-500" />
+                          <span className="text-[10px] uppercase tracking-[0.05em]">Stop</span>
                         </button>
                       </div>
                     </div>
 
                     {showFloating && (
                       <div 
-                        className="fixed z-50 animate-in fade-in zoom-in duration-200"
+                        className="absolute z-50 animate-in fade-in zoom-in duration-200"
                         style={{ top: floatingPos.top, left: floatingPos.left }}
                       >
                         <button
@@ -779,17 +809,17 @@ ${textToUse}`;
             )}
 
             {audioData && (
-              <div className={`${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200'} border rounded-2xl p-6 flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500`}>
+              <div className={`${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-2xl p-6 flex flex-col space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-500`}>
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-semibold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-500 uppercase tracking-[0.05em] flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     Audio Ready
                   </span>
-                  <span className="text-xs text-zinc-500 font-mono">{audioData.mimeType}</span>
+                  <span className={`text-xs font-mono ${theme === 'dark' ? 'text-zinc-500' : 'text-[#888888]'}`}>{audioData.mimeType}</span>
                 </div>
                 
-                <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
-                  <div className={`relative w-full h-10 ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800' : 'bg-zinc-50 border-zinc-200'} rounded-lg border flex items-center px-4 overflow-hidden`}>
+                <div className="flex flex-col sm:flex-row items-center gap-5 w-full">
+                  <div className={`relative w-full h-12 ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800' : 'bg-[#F8F9FA] border-[#E0E0E0]'} rounded-xl border flex items-center px-4 overflow-hidden shadow-inner`}>
                     {isPlaying && (
                       <div className="absolute inset-0 flex items-center justify-around px-4 opacity-20 pointer-events-none">
                         {[...Array(12)].map((_, i) => (
@@ -819,20 +849,20 @@ ${textToUse}`;
                         setError(`Audio load failed (Code: ${code}, Msg: ${msg || 'Unknown'}). Please try again.`);
                       }}
                       controls 
-                      className="w-full h-8 accent-emerald-500 relative z-10"
+                      className="w-full h-10 accent-emerald-500 relative z-10"
                     />
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex gap-3 w-full sm:w-auto">
                     <button
                       onClick={playAudio}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl transition-colors text-sm font-semibold"
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-xl transition-colors text-sm font-bold shadow-[0_2px_4px_rgba(0,0,0,0.05)]"
                     >
                       <Volume2 className="w-4 h-4" />
                       Play
                     </button>
                     <button
                       onClick={handleDownloadWav}
-                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200'} border rounded-xl transition-colors text-sm font-semibold`}
+                      className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700' : 'bg-white border-[#E0E0E0] text-[#444444] hover:bg-zinc-50 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-xl transition-colors text-sm font-bold`}
                     >
                       <Download className="w-4 h-4" />
                       WAV
@@ -845,6 +875,12 @@ ${textToUse}`;
 
         </main>
       </div>
+
+      <PartnershipForm 
+        isOpen={showPartnership} 
+        onClose={() => setShowPartnership(false)} 
+        theme={theme} 
+      />
     </div>
   );
 }

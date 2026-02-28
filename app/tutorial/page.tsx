@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Play, Settings, Key, Volume2, Download, Sun, Moon, MousePointer2 } from 'lucide-react';
+import { ArrowLeft, Play, Settings, Key, Volume2, Download, Sun, Moon, MousePointer2, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function TutorialPage() {
@@ -41,6 +41,14 @@ export default function TutorialPage() {
       color: "bg-amber-500/10 text-amber-400",
       summary: "Download your high-quality 44.1kHz WAV file.",
       details: "Once you're happy with the result, click the WAV button to download the audio. We provide high-fidelity 44.1kHz output, suitable for professional video editing, podcasts, or presentations. Each download is named with a timestamp for easy organization."
+    },
+    {
+      id: 5,
+      title: "5. Contact Developer",
+      icon: <Mail className="w-6 h-6" />,
+      color: "bg-pink-500/10 text-pink-400",
+      summary: "Have feedback or need assistance? Reach out to us directly.",
+      details: "저희 서비스 이용 중 불편한 점이 있으시거나, 개발자에게 전하실 소중한 의견이 있다면 언제든 상단의 메일 아이콘을 통해 연락 주시기 바랍니다. 보내주신 메시지는 개발팀에서 직접 검토하며, 더 나은 서비스를 만드는 데 큰 힘이 됩니다. 비즈니스 제휴나 기술적 문의 또한 환영합니다."
     }
   ];
 
