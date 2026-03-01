@@ -64,6 +64,7 @@ export default function AlarmPage() {
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [conversationHistory, setConversationHistory] = useState<{role: string, text: string}[]>([]);
   const [wakeLock, setWakeLock] = useState<any>(null);
+  const [youtubeQuery, setYoutubeQuery] = useState('');
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
@@ -253,7 +254,7 @@ export default function AlarmPage() {
       const historyText = newHistory.map(h => `${h.role === 'user' ? 'User' : 'AI'}: ${h.text}`).join('\n');
 
       const systemInstruction = `
-        You are an aggressive wake-up drill sergeant AI.
+        You are a sassy, quick-witted wake-up assistant.
         Current Time: ${new Date().toLocaleTimeString()}
         
         [CONVERSATION HISTORY]
@@ -261,18 +262,17 @@ export default function AlarmPage() {
         
         [RULES]
         1. Answer in Korean.
-        2. Max 15 characters per sentence. Short and punchy.
-        3. ALWAYS ask a question immediately after answering.
-        4. Topics: Math (multiplication, addition), Spelling (English words), Schedule (ask user), Weather (ask user).
-        5. Be relentless. Do not stop until the user stops the alarm manually.
-        6. If the user answers correctly, say "Good" and ask another hard question.
-        7. If wrong, scold them and ask again.
+        2. Max 20 characters. Short, punchy, casual (Banmal).
+        3. STYLE: Tsundere (Cold but caring). React to user's input first, then ask a question.
+        4. TOPICS: Sleep, dreams, condition, breakfast, schedule, weather. (Math/Spelling only 10% chance).
+        5. TIKI-TAKA: If user asks a question, answer it briefly, then counter-attack with a question.
+        6. MUSIC: If user asks for music/song/youtube, append "[PLAY: search_term]" at the end of response.
         
-        [EXAMPLE]
-        User: "6시야"
-        AI: "맞아. 7 곱하기 9는?"
-        User: "63"
-        AI: "정답. Apple 스펠링?"
+        [EXAMPLES]
+        User: "졸려" -> AI: "눈 떠. 어제 늦게 잤어?"
+        User: "날씨 어때?" -> AI: "추워. 패딩 입어. 일어났어?"
+        User: "아이유 노래 틀어줘" -> AI: "알겠어. 잠 좀 깨. [PLAY: 아이유 노래]"
+        User: "몇 시야?" -> AI: "7시. 지각하고 싶어?"
       `;
 
       const response = await ai.models.generateContent({
@@ -282,7 +282,15 @@ export default function AlarmPage() {
         ]
       });
 
-      const aiText = response.text || "";
+      let aiText = response.text || "";
+      
+      // Check for YouTube command
+      const playMatch = aiText.match(/\[PLAY: (.*?)\]/);
+      if (playMatch) {
+        const query = playMatch[1];
+        setYoutubeQuery(query); // Trigger YouTube player
+        aiText = aiText.replace(/\[PLAY: .*?\]/, '').trim(); // Remove command from spoken text
+      }
       
       // Update history again with AI response
       setConversationHistory(prev => [...prev, { role: 'model', text: aiText }]);
@@ -403,6 +411,21 @@ export default function AlarmPage() {
                      <p className="text-zinc-500 text-lg italic">"{transcript}"</p>
                    </div>
                 </div>
+
+                {/* YouTube Player */}
+                {youtubeQuery && (
+                  <div className="w-full aspect-video rounded-xl overflow-hidden shadow-lg border border-zinc-800">
+                    <iframe 
+                      width="100%" 
+                      height="100%" 
+                      src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(youtubeQuery)}&autoplay=1`} 
+                      title="YouTube video player" 
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                )}
 
                 {/* Mic Status */}
                 <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${isListening ? 'bg-red-500/20 text-red-500' : 'bg-zinc-800 text-zinc-500'}`}>
