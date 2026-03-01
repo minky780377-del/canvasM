@@ -73,6 +73,7 @@ export default function AlarmPage() {
   const oscillatorRef = useRef<OscillatorNode | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const alarmTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Force silence timeout
   
   // --- Effects ---
 
@@ -238,6 +239,10 @@ export default function AlarmPage() {
       clearTimeout(alarmTimeoutRef.current);
       alarmTimeoutRef.current = null;
     }
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
 
     if (recognitionRef.current) {
       recognitionRef.current.stop();
@@ -359,31 +364,43 @@ export default function AlarmPage() {
       setIsListening(true);
       isProcessingRef.current = false;
 
+      // Force silence timeout (2.5s)
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = setTimeout(() => {
+        if (isRinging && !isProcessingRef.current) {
+          console.log("Silence timeout - stopping recognition");
+          recognition.stop(); 
+          // onend will fire and trigger nagging
+        }
+      }, 2500);
+
       recognition.onresult = (event: any) => {
+        if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+        
         const text = event.results[0][0].transcript;
         setTranscript(text);
-        isProcessingRef.current = true; // Mark as processing so onend doesn't restart immediately
+        isProcessingRef.current = true; 
         handleUserResponse(text);
       };
 
       recognition.onerror = (event: any) => {
         console.error("Speech error", event.error);
+        if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
         setIsListening(false);
-        // If error (no speech), try to restart if still ringing
+        
+        // If error (no speech), trigger nagging immediately
         if (isRinging && !isProcessingRef.current) {
-             setTimeout(() => {
-                 if(isRinging) startListening();
-             }, 1000);
+             triggerNagging();
         }
       };
 
       recognition.onend = () => {
+        if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
         setIsListening(false);
-        // If ended without result (silence) and still ringing, restart
+        
+        // If ended without result (silence), trigger nagging immediately
         if (isRinging && !isProcessingRef.current) {
-            setTimeout(() => {
-                if(isRinging) startListening();
-            }, 500);
+            triggerNagging();
         }
       };
 
@@ -394,15 +411,71 @@ export default function AlarmPage() {
     }
   }
 
+  // Handle silence: Removed (logic moved to onend/onerror)
+  // AI speaks without user input (Nagging)
+  async function triggerNagging() {
+    isProcessingRef.current = true;
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const historyText = conversationHistory.map(h => `${h.role === 'user' ? 'User' : 'AI'}: ${h.text}`).join('\n');
+      
+      const prompt = `
+        Current Time: ${new Date().toLocaleTimeString()}
+        User is silent. You need to wake them up.
+        
+        [HISTORY]
+        ${historyText}
+        
+        [TASK]
+        Generate a short, nagging message in Korean (Banmal).
+        Use these specific phrases randomly:
+        - "오늘 날씨 진짜 좋아." (The weather is really good today)
+        - "기분 좋게 시작하자!" (Let's start the day happily)
+        - "얼른 일어나." (Get up quickly)
+        - "자니? 대답 좀 해." (Are you sleeping? Answer me)
+        Max 20 characters.
+      `;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
+      });
+
+      const aiText = response.text || "일어나.";
+      
+      // Generate audio FIRST
+      const blob = await generateTTSBlob(aiText);
+      
+      // THEN update UI (Sync text with audio)
+      setConversationHistory(prev => [...prev, { role: 'model', text: aiText }]);
+      setAiResponse(aiText);
+      
+      // THEN play
+      if (blob) {
+        playAudioBuffer(blob);
+      } else {
+        const utterance = new SpeechSynthesisUtterance(aiText);
+        utterance.lang = 'ko-KR';
+        utterance.onend = () => startListening();
+        window.speechSynthesis.speak(utterance);
+      }
+
+    } catch (e) {
+      console.error("Nagging failed", e);
+      isProcessingRef.current = false;
+      startListening();
+    }
+  }
+
   async function handleUserResponse(userText: string) {
     // Update history
     const newHistory = [...conversationHistory, { role: 'user', text: userText }];
     setConversationHistory(newHistory); 
+    setAiResponse("..."); // Show thinking state
 
     try {
       const ai = new GoogleGenAI({ apiKey });
       
-      // Construct prompt
       const historyText = newHistory.map(h => `${h.role === 'user' ? 'User' : 'AI'}: ${h.text}`).join('\n');
 
       const systemInstruction = `
@@ -416,7 +489,8 @@ export default function AlarmPage() {
         1. Answer in Korean.
         2. Max 20 characters. Short, punchy, casual (Banmal).
         3. STYLE: Tsundere (Cold but caring). React to user's input first, then ask a question.
-        4. TOPICS DISTRIBUTION (Randomly pick one):
+        4. GOAL: WAKE USER UP. Don't just chat. Check if they are awake. If they seem sleepy, scold them.
+        5. TOPICS DISTRIBUTION (Randomly pick one):
            - Math Calculation (Simple addition/multiplication) - 10% chance
            - Schedule Inquiry ("What's your plan today?") - 20% chance
            - Outfit Suggestion ("It's cold, wear padding.") - 20% chance
@@ -424,8 +498,8 @@ export default function AlarmPage() {
            - Weather Comment ("Sun is nice today.") - 15% chance
            - Encouragement ("Start happily!") - 10% chance
            - Wake up command ("Get up now!") - 5% chance
-        5. TIKI-TAKA: If user asks a question, answer it briefly, then counter-attack with a question.
-        6. MUSIC: If user asks for music/song/youtube, append "[PLAY: search_term]" at the end of response.
+        6. TIKI-TAKA: If user asks a question, answer it briefly, then counter-attack with a question.
+        7. MUSIC: If user asks for music/song/youtube, append "[PLAY: search_term]" at the end of response.
         
         [EXAMPLES]
         User: "졸려" -> AI: "눈 떠. 어제 늦게 잤어?"
@@ -449,22 +523,38 @@ export default function AlarmPage() {
         const query = playMatch[1];
         setYoutubeQuery(query); // Trigger YouTube player
         aiText = aiText.replace(/\[PLAY: .*?\]/, '').trim(); // Remove command from spoken text
-        
-        // Stop BGM if YouTube starts
-        // (BGM logic removed, but if alarm sound was playing, stop it)
         stopAlarmSound();
       }
       
-      // Update history again with AI response
+      // Generate audio FIRST
+      const blob = await generateTTSBlob(aiText);
+
+      // THEN update UI (Sync text with audio)
       setConversationHistory(prev => [...prev, { role: 'model', text: aiText }]);
+      setAiResponse(aiText);
       
-      await speakText(aiText);
+      // THEN play
+      if (blob) {
+        playAudioBuffer(blob);
+      } else {
+        const utterance = new SpeechSynthesisUtterance(aiText);
+        utterance.lang = 'ko-KR';
+        utterance.onend = () => startListening();
+        window.speechSynthesis.speak(utterance);
+      }
 
     } catch (error) {
       console.error("AI Logic Error:", error);
-      speakText("오류가 났어. 다시 말해봐.");
+      // Fallback text
+      const errorText = "오류가 났어. 다시 말해봐.";
+      setAiResponse(errorText);
+      const utterance = new SpeechSynthesisUtterance(errorText);
+      utterance.lang = 'ko-KR';
+      utterance.onend = () => startListening();
+      window.speechSynthesis.speak(utterance);
     } finally {
-        isProcessingRef.current = false; // Reset processing flag after AI is done (or failed)
+        // isProcessingRef.current is reset in speakText's onended or error handler
+        // But since we inlined speakText logic, we rely on playAudioBuffer's onended
     }
   }
 
@@ -494,7 +584,7 @@ export default function AlarmPage() {
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10">
         
         {/* Clock */}
-        <div className={`text-center space-y-2 ${isAlarmSet ? 'scale-125 sm:scale-150 transition-transform duration-1000' : ''}`}>
+        <div className={`text-center space-y-2 transition-all duration-1000 ${isAlarmSet ? (isRinging ? 'scale-100 opacity-20 blur-sm' : 'scale-125 sm:scale-150') : ''}`}>
           <div className="text-[15vw] sm:text-[12rem] font-black font-mono leading-none tracking-tighter tabular-nums">
             {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
           </div>
@@ -535,8 +625,8 @@ export default function AlarmPage() {
 
         {/* Bedside Mode */}
         {isAlarmSet && (
-          <div className="absolute bottom-12 left-0 right-0 flex flex-col items-center gap-8 animate-in fade-in duration-1000 delay-500">
-            <div className="flex items-center gap-6 text-emerald-500/50 text-sm font-mono">
+          <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-8 animate-in fade-in duration-1000 delay-500">
+            <div className={`flex items-center gap-6 text-emerald-500/50 text-sm font-mono transition-opacity duration-500 ${isRinging ? 'opacity-0' : 'opacity-100'}`}>
               <div className="flex items-center gap-2">
                 <Battery className="w-4 h-4" />
                 <span>{batteryLevel !== null ? `${batteryLevel}%` : '--%'}</span>
@@ -559,22 +649,12 @@ export default function AlarmPage() {
                 Cancel Alarm
               </button>
             ) : (
-              <div className="flex flex-col items-center gap-6 w-full max-w-md px-6">
+              <div className="flex flex-col items-center gap-4 w-full max-w-md px-6">
                 {/* Visualizer */}
-                <div className="flex items-center justify-center gap-1 h-12">
+                <div className="flex items-center justify-center gap-1 h-16">
                    {[...Array(5)].map((_, i) => (
-                     <div key={i} className="w-2 bg-emerald-500 rounded-full animate-bounce" style={{ height: '100%', animationDelay: `${i * 0.1}s` }} />
+                     <div key={i} className="w-3 bg-emerald-500 rounded-full animate-bounce" style={{ height: '100%', animationDelay: `${i * 0.1}s` }} />
                    ))}
-                </div>
-
-                {/* Log */}
-                <div className="w-full space-y-4">
-                   <div className="text-center">
-                     <p className="text-emerald-400 text-2xl font-bold">{aiResponse}</p>
-                   </div>
-                   <div className="text-center">
-                     <p className="text-zinc-500 text-lg italic">"{transcript}"</p>
-                   </div>
                 </div>
 
                 {/* YouTube Player */}
