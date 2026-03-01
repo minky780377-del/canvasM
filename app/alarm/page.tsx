@@ -67,9 +67,12 @@ export default function AlarmPage() {
   const [youtubeQuery, setYoutubeQuery] = useState('');
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const bgmRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const isProcessingRef = useRef(false);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const alarmTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // --- Effects ---
 
@@ -111,6 +114,64 @@ export default function AlarmPage() {
 
   // --- Logic Functions (Hoisted) ---
 
+  // Helper: Play Audio Buffer using Web Audio API (More robust than <audio> tag)
+  async function playAudioBuffer(blob: Blob) {
+    if (!audioContextRef.current) return;
+    const ctx = audioContextRef.current;
+    
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start(0);
+      
+      source.onended = () => {
+        startListening();
+      };
+    } catch (e) {
+      console.error("Web Audio Playback Failed", e);
+      // Fallback to SpeechSynthesis if blob fails
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = "오류가 발생했습니다."; // Fallback text
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ko-KR';
+        window.speechSynthesis.speak(utterance);
+      };
+      reader.readAsText(blob);
+    }
+  }
+
+  // Helper: Generate TTS Blob
+  async function generateTTSBlob(text: string): Promise<Blob | null> {
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-preview-tts',
+        contents: [{ parts: [{ text }] }],
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: 'Kore' },
+            },
+          },
+        },
+      });
+
+      const part = response.candidates?.[0]?.content?.parts?.[0];
+      if (part?.inlineData?.data) {
+        return createWavBlob(part.inlineData.data);
+      }
+    } catch (error) {
+      console.error("TTS Generation Error:", error);
+    }
+    return null;
+  }
+
   async function requestWakeLock() {
     try {
       if ('wakeLock' in navigator) {
@@ -145,21 +206,24 @@ export default function AlarmPage() {
       alert("Microphone permission is required.");
     }
 
-    // Prime audio elements for mobile browsers (iOS/Android)
-    // This allows programmatic playback later when the alarm triggers
-    if (audioRef.current) {
-      const audio = audioRef.current;
-      audio.play().then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      }).catch(() => {});
-    }
-    if (bgmRef.current) {
-      const bgm = bgmRef.current;
-      bgm.play().then(() => {
-        bgm.pause();
-        bgm.currentTime = 0;
-      }).catch(() => {});
+    // Initialize AudioContext
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContext();
+      audioContextRef.current = ctx;
+      // Resume context (needed for mobile browsers)
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+      
+      // Create a silent buffer to keep the audio context active
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+    } catch (e) {
+      console.error("AudioContext init failed", e);
     }
   }
 
@@ -167,14 +231,14 @@ export default function AlarmPage() {
     setIsAlarmSet(false);
     setIsRinging(false);
     releaseWakeLock();
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    
+    // Stop Alarm Sound
+    stopAlarmSound();
+    if (alarmTimeoutRef.current) {
+      clearTimeout(alarmTimeoutRef.current);
+      alarmTimeoutRef.current = null;
     }
-    if (bgmRef.current) {
-      bgmRef.current.pause();
-      bgmRef.current.currentTime = 0;
-    }
+
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
@@ -187,50 +251,86 @@ export default function AlarmPage() {
   async function triggerAlarm() {
     setIsRinging(true);
     
-    // Start BGM (Forest Morning)
-    if (bgmRef.current) {
-      bgmRef.current.volume = 0.2; // Low volume background
-      bgmRef.current.play().catch(e => console.log("BGM Play failed", e));
-    }
+    // 1. Play Alarm Sound (Beep) for 10 seconds
+    playAlarmSound();
 
-    const initialPrompt = "일어날 시간이야! 지금 몇 시인지 알아? (대답해봐)";
-    setConversationHistory([{ role: 'model', text: initialPrompt }]);
-    await speakText(initialPrompt);
+    // 2. Pre-fetch the initial greeting TTS *while* the beep is playing
+    // This hides the latency.
+    const initialText = "일어날 시간이야.";
+    const preFetchPromise = generateTTSBlob(initialText);
+
+    // 3. After 10 seconds, stop alarm and play the pre-fetched audio
+    alarmTimeoutRef.current = setTimeout(async () => {
+      stopAlarmSound();
+      
+      setConversationHistory([{ role: 'model', text: initialText }]);
+      setAiResponse(initialText);
+
+      const blob = await preFetchPromise;
+      if (blob) {
+        playAudioBuffer(blob);
+      } else {
+        // Fallback if TTS failed
+        const utterance = new SpeechSynthesisUtterance(initialText);
+        utterance.lang = 'ko-KR';
+        utterance.onend = () => startListening();
+        window.speechSynthesis.speak(utterance);
+      }
+    }, 10000); // 10 seconds
+  }
+
+  function playAlarmSound() {
+    try {
+      if (!audioContextRef.current) return;
+      
+      const ctx = audioContextRef.current;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(880, ctx.currentTime); // A5
+      
+      // Beep pattern: High volume then silence repeatedly
+      const now = ctx.currentTime;
+      for (let i = 0; i < 20; i++) { 
+        gainNode.gain.setValueAtTime(0.1, now + i * 0.5);
+        gainNode.gain.setValueAtTime(0, now + i * 0.5 + 0.2);
+      }
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.start();
+      
+      oscillatorRef.current = oscillator;
+      gainNodeRef.current = gainNode;
+    } catch (e) {
+      console.error("Alarm sound failed", e);
+    }
+  }
+
+  function stopAlarmSound() {
+    try {
+      if (oscillatorRef.current) {
+        oscillatorRef.current.stop();
+        oscillatorRef.current.disconnect();
+        oscillatorRef.current = null;
+      }
+      if (gainNodeRef.current) {
+        gainNodeRef.current.disconnect();
+        gainNodeRef.current = null;
+      }
+    } catch (e) {
+      console.error("Stop alarm failed", e);
+    }
   }
 
   async function speakText(text: string) {
     setAiResponse(text);
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-preview-tts',
-        contents: [{ parts: [{ text }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' },
-            },
-          },
-        },
-      });
-
-      const part = response.candidates?.[0]?.content?.parts?.[0];
-      if (part?.inlineData?.data) {
-        const blob = createWavBlob(part.inlineData.data);
-        const url = URL.createObjectURL(blob);
-        
-        if (audioRef.current) {
-          audioRef.current.src = url;
-          audioRef.current.play();
-          audioRef.current.onended = () => {
-            startListening();
-          };
-        }
-      }
-    } catch (error) {
-      console.error("TTS Error:", error);
-      // Fallback
+    const blob = await generateTTSBlob(text);
+    if (blob) {
+      playAudioBuffer(blob);
+    } else {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'ko-KR';
       utterance.onend = () => startListening();
@@ -316,7 +416,14 @@ export default function AlarmPage() {
         1. Answer in Korean.
         2. Max 20 characters. Short, punchy, casual (Banmal).
         3. STYLE: Tsundere (Cold but caring). React to user's input first, then ask a question.
-        4. TOPICS: Sleep, dreams, condition, breakfast, schedule, weather. (Math/Spelling only 10% chance).
+        4. TOPICS DISTRIBUTION (Randomly pick one):
+           - Math Calculation (Simple addition/multiplication) - 10% chance
+           - Schedule Inquiry ("What's your plan today?") - 20% chance
+           - Outfit Suggestion ("It's cold, wear padding.") - 20% chance
+           - Breakfast Menu ("What are you eating?") - 20% chance
+           - Weather Comment ("Sun is nice today.") - 15% chance
+           - Encouragement ("Start happily!") - 10% chance
+           - Wake up command ("Get up now!") - 5% chance
         5. TIKI-TAKA: If user asks a question, answer it briefly, then counter-attack with a question.
         6. MUSIC: If user asks for music/song/youtube, append "[PLAY: search_term]" at the end of response.
         
@@ -344,9 +451,8 @@ export default function AlarmPage() {
         aiText = aiText.replace(/\[PLAY: .*?\]/, '').trim(); // Remove command from spoken text
         
         // Stop BGM if YouTube starts
-        if (bgmRef.current) {
-          bgmRef.current.pause();
-        }
+        // (BGM logic removed, but if alarm sound was playing, stop it)
+        stopAlarmSound();
       }
       
       // Update history again with AI response
@@ -369,7 +475,6 @@ export default function AlarmPage() {
     <div className={`min-h-screen transition-colors duration-300 ${isAlarmSet ? 'bg-black text-emerald-500' : (theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-[#F8F9FA] text-[#444444]')} flex flex-col relative overflow-hidden`}>
       
       <audio ref={audioRef} className="hidden" preload="auto" />
-      <audio ref={bgmRef} className="hidden" loop src="https://actions.google.com/sounds/v1/ambiences/forest_morning.ogg" preload="auto" />
 
       {/* Header */}
       {!isAlarmSet && (
