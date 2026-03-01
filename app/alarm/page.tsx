@@ -65,8 +65,9 @@ export default function AlarmPage() {
   const [conversationHistory, setConversationHistory] = useState<{role: string, text: string}[]>([]);
   const [wakeLock, setWakeLock] = useState<any>(null);
   const [youtubeQuery, setYoutubeQuery] = useState('');
-
+  
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const bgmRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
   
   // --- Effects ---
@@ -152,16 +153,28 @@ export default function AlarmPage() {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
+    if (bgmRef.current) {
+      bgmRef.current.pause();
+      bgmRef.current.currentTime = 0;
+    }
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
     setConversationHistory([]);
     setTranscript('');
     setAiResponse('');
+    setYoutubeQuery('');
   }
 
   async function triggerAlarm() {
     setIsRinging(true);
+    
+    // Start BGM (Forest Morning)
+    if (bgmRef.current) {
+      bgmRef.current.volume = 0.2; // Low volume background
+      bgmRef.current.play().catch(e => console.log("BGM Play failed", e));
+    }
+
     const initialPrompt = "일어날 시간이야! 지금 몇 시인지 알아? (대답해봐)";
     setConversationHistory([{ role: 'model', text: initialPrompt }]);
     await speakText(initialPrompt);
@@ -290,6 +303,11 @@ export default function AlarmPage() {
         const query = playMatch[1];
         setYoutubeQuery(query); // Trigger YouTube player
         aiText = aiText.replace(/\[PLAY: .*?\]/, '').trim(); // Remove command from spoken text
+        
+        // Stop BGM if YouTube starts
+        if (bgmRef.current) {
+          bgmRef.current.pause();
+        }
       }
       
       // Update history again with AI response
@@ -310,6 +328,7 @@ export default function AlarmPage() {
     <div className={`min-h-screen transition-colors duration-300 ${isAlarmSet ? 'bg-black text-emerald-500' : (theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-[#F8F9FA] text-[#444444]')} flex flex-col relative overflow-hidden`}>
       
       <audio ref={audioRef} className="hidden" />
+      <audio ref={bgmRef} className="hidden" loop src="https://actions.google.com/sounds/v1/ambiences/forest_morning.ogg" />
 
       {/* Header */}
       {!isAlarmSet && (
