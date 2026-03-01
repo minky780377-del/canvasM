@@ -874,6 +874,20 @@ ${textToUse}`;
           </div>
 
         </main>
+
+        <footer className={`max-w-4xl mx-auto px-6 py-12 border-t ${theme === 'dark' ? 'border-zinc-800' : 'border-[#E0E0E0]'} flex flex-col sm:flex-row items-center justify-between gap-6`}>
+          <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">
+            © 2026 canvasM TTS Studio • Global Ready
+          </p>
+          <div className="flex items-center gap-6">
+            <Link href="/privacy" className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${theme === 'dark' ? 'text-zinc-500 hover:text-emerald-400' : 'text-[#888888] hover:text-emerald-600'}`}>
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${theme === 'dark' ? 'text-zinc-500 hover:text-emerald-400' : 'text-[#888888] hover:text-emerald-600'}`}>
+              Terms of Service
+            </Link>
+          </div>
+        </footer>
       </div>
 
       <PartnershipForm 
