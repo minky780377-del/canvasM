@@ -69,6 +69,7 @@ export default function AlarmPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const isProcessingRef = useRef(false);
   
   // --- Effects ---
 
@@ -142,6 +143,23 @@ export default function AlarmPage() {
     } catch (e) {
       console.error("Mic permission denied", e);
       alert("Microphone permission is required.");
+    }
+
+    // Prime audio elements for mobile browsers (iOS/Android)
+    // This allows programmatic playback later when the alarm triggers
+    if (audioRef.current) {
+      const audio = audioRef.current;
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      }).catch(() => {});
+    }
+    if (bgmRef.current) {
+      const bgm = bgmRef.current;
+      bgm.play().then(() => {
+        bgm.pause();
+        bgm.currentTime = 0;
+      }).catch(() => {});
     }
   }
 
@@ -226,44 +244,65 @@ export default function AlarmPage() {
       return;
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
+    // If already listening or processing, don't start
+    if (isListening || isProcessingRef.current) return;
 
-    recognition.lang = 'ko-KR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
 
-    setIsListening(true);
+      recognition.lang = 'ko-KR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
 
-    recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript;
-      setTranscript(text);
-      handleUserResponse(text);
-    };
+      setIsListening(true);
+      isProcessingRef.current = false;
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech error", event.error);
+      recognition.onresult = (event: any) => {
+        const text = event.results[0][0].transcript;
+        setTranscript(text);
+        isProcessingRef.current = true; // Mark as processing so onend doesn't restart immediately
+        handleUserResponse(text);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech error", event.error);
+        setIsListening(false);
+        // If error (no speech), try to restart if still ringing
+        if (isRinging && !isProcessingRef.current) {
+             setTimeout(() => {
+                 if(isRinging) startListening();
+             }, 1000);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        // If ended without result (silence) and still ringing, restart
+        if (isRinging && !isProcessingRef.current) {
+            setTimeout(() => {
+                if(isRinging) startListening();
+            }, 500);
+        }
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.error("Start listening failed", e);
       setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.start();
+    }
   }
 
   async function handleUserResponse(userText: string) {
     // Update history
     const newHistory = [...conversationHistory, { role: 'user', text: userText }];
-    setConversationHistory(newHistory); // Async update, careful with next step
+    setConversationHistory(newHistory); 
 
     try {
       const ai = new GoogleGenAI({ apiKey });
       
       // Construct prompt
-      // We use the *local* newHistory variable to ensure we have the latest
       const historyText = newHistory.map(h => `${h.role === 'user' ? 'User' : 'AI'}: ${h.text}`).join('\n');
 
       const systemInstruction = `
@@ -318,6 +357,8 @@ export default function AlarmPage() {
     } catch (error) {
       console.error("AI Logic Error:", error);
       speakText("오류가 났어. 다시 말해봐.");
+    } finally {
+        isProcessingRef.current = false; // Reset processing flag after AI is done (or failed)
     }
   }
 
@@ -327,8 +368,8 @@ export default function AlarmPage() {
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isAlarmSet ? 'bg-black text-emerald-500' : (theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-[#F8F9FA] text-[#444444]')} flex flex-col relative overflow-hidden`}>
       
-      <audio ref={audioRef} className="hidden" />
-      <audio ref={bgmRef} className="hidden" loop src="https://actions.google.com/sounds/v1/ambiences/forest_morning.ogg" />
+      <audio ref={audioRef} className="hidden" preload="auto" />
+      <audio ref={bgmRef} className="hidden" loop src="https://actions.google.com/sounds/v1/ambiences/forest_morning.ogg" preload="auto" />
 
       {/* Header */}
       {!isAlarmSet && (
