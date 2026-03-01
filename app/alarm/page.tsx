@@ -364,15 +364,15 @@ export default function AlarmPage() {
       setIsListening(true);
       isProcessingRef.current = false;
 
-      // Force silence timeout (2.5s)
+      // Force silence timeout (2s) - Aggressive
       if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
       silenceTimeoutRef.current = setTimeout(() => {
         if (isRinging && !isProcessingRef.current) {
-          console.log("Silence timeout - stopping recognition");
-          recognition.stop(); 
-          // onend will fire and trigger nagging
+          console.log("Silence timeout (2s) - Aborting recognition");
+          recognition.abort(); // Abort is faster than stop
+          triggerNagging(); // Immediately trigger nagging
         }
-      }, 2500);
+      }, 2000);
 
       recognition.onresult = (event: any) => {
         if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
@@ -673,9 +673,8 @@ export default function AlarmPage() {
                 )}
 
                 {/* Mic Status */}
-                <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${isListening ? 'bg-red-500/20 text-red-500' : 'bg-zinc-800 text-zinc-500'}`}>
-                  <Mic className={`w-4 h-4 ${isListening ? 'animate-pulse' : ''}`} />
-                  <span className="text-xs font-bold uppercase tracking-widest">{isListening ? 'Listening...' : 'Processing...'}</span>
+                <div className={`flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 ${isListening ? 'bg-red-500/20 text-red-500 scale-110' : 'bg-zinc-800/50 text-zinc-600'}`}>
+                  <Mic className={`w-6 h-6 ${isListening ? 'animate-pulse' : ''}`} />
                 </div>
 
                 <button 
