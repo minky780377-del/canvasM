@@ -66,7 +66,7 @@ export default function AlarmPage() {
   const [wakeLock, setWakeLock] = useState<any>(null);
   const [youtubeQuery, setYoutubeQuery] = useState('');
   
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const isProcessingRef = useRef(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -74,8 +74,15 @@ export default function AlarmPage() {
   const gainNodeRef = useRef<GainNode | null>(null);
   const alarmTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null); // Force silence timeout
+  const isRingingRef = useRef(false);
+  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
   
   // --- Effects ---
+
+  // Sync isRinging state to ref for use in closures
+  useEffect(() => {
+    isRingingRef.current = isRinging;
+  }, [isRinging]);
 
   // Initialize
   useEffect(() => {
@@ -127,10 +134,13 @@ export default function AlarmPage() {
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(ctx.destination);
+      currentSourceRef.current = source;
       source.start(0);
       
       source.onended = () => {
-        startListening();
+        currentSourceRef.current = null;
+        isProcessingRef.current = false; // Reset processing flag
+        scheduleNextNag();
       };
     } catch (e) {
       console.error("Web Audio Playback Failed", e);
@@ -140,6 +150,10 @@ export default function AlarmPage() {
         const text = "오류가 발생했습니다."; // Fallback text
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'ko-KR';
+        utterance.onend = () => {
+             isProcessingRef.current = false;
+             scheduleNextNag();
+        };
         window.speechSynthesis.speak(utterance);
       };
       reader.readAsText(blob);
@@ -180,7 +194,15 @@ export default function AlarmPage() {
         setWakeLock(lock);
       }
     } catch (err) {
-      console.error('Wake Lock failed:', err);
+      // Suppress known permission error
+      // console.warn('Wake Lock API failed, using video fallback:', err);
+    }
+    
+    // Always try video fallback for robustness
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {
+          // Suppress video play error
+      });
     }
   }
 
@@ -188,6 +210,9 @@ export default function AlarmPage() {
     if (wakeLock) {
       await wakeLock.release();
       setWakeLock(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.pause();
     }
   }
 
@@ -235,6 +260,14 @@ export default function AlarmPage() {
     
     // Stop Alarm Sound
     stopAlarmSound();
+    
+    // Stop any playing audio
+    if (currentSourceRef.current) {
+        try { currentSourceRef.current.stop(); } catch(e) {}
+        currentSourceRef.current = null;
+    }
+    window.speechSynthesis.cancel();
+
     if (alarmTimeoutRef.current) {
       clearTimeout(alarmTimeoutRef.current);
       alarmTimeoutRef.current = null;
@@ -247,6 +280,7 @@ export default function AlarmPage() {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+    isProcessingRef.current = false; // Reset processing flag
     setConversationHistory([]);
     setTranscript('');
     setAiResponse('');
@@ -278,7 +312,7 @@ export default function AlarmPage() {
         // Fallback if TTS failed
         const utterance = new SpeechSynthesisUtterance(initialText);
         utterance.lang = 'ko-KR';
-        utterance.onend = () => startListening();
+        utterance.onend = () => scheduleNextNag();
         window.speechSynthesis.speak(utterance);
       }
     }, 10000); // 10 seconds
@@ -384,7 +418,11 @@ export default function AlarmPage() {
       };
 
       recognition.onerror = (event: any) => {
-        console.error("Speech error", event.error);
+        // Ignore 'no-speech' and 'aborted' errors as they are expected
+        if (event.error !== 'no-speech' && event.error !== 'aborted') {
+             console.error("Speech error", event.error);
+        }
+        
         if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
         setIsListening(false);
         
@@ -407,64 +445,95 @@ export default function AlarmPage() {
       recognition.start();
     } catch (e) {
       console.error("Start listening failed", e);
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
       setIsListening(false);
+      
+      // Fallback: If mic fails (e.g. no permission/gesture), continue the loop
+      if (isRinging && !isProcessingRef.current) {
+          console.warn("Mic failed, falling back to nagging loop");
+          setTimeout(() => triggerNagging(), 1000);
+      }
     }
   }
 
   // Handle silence: Removed (logic moved to onend/onerror)
-  // AI speaks without user input (Nagging)
+  // Pre-defined nagging phrases for instant response
+  const NAGGING_PHRASES = [
+    "자니? 대답 좀 해.",
+    "얼른 일어나.",
+    "오늘 날씨 진짜 좋아.",
+    "기분 좋게 시작하자!",
+    "눈 떠. 늦겠어.",
+    "일어나라고 했잖아.",
+    "계속 잘 거야?",
+    "빨리 일어나.",
+    "아침 먹어야지.",
+    "지각하고 싶어?",
+    "세수하러 가자.",
+    "물 한 잔 마셔.",
+    "스트레칭 좀 해.",
+    "이불 밖은 위험하지 않아.",
+    "햇살이 좋아.",
+    "일어나서 창문 좀 열어.",
+    "오늘 할 일 많잖아.",
+    "지금 안 일어나면 후회해.",
+    "침대가 그렇게 좋아?",
+    "하나 둘 셋 하면 일어나는 거야.",
+    "2 더하기 3은 뭐야?",
+    "5 곱하기 2는?",
+    "10 빼기 3은?",
+    "3 곱하기 3은?",
+    "1 더하기 1은?",
+    "정신 차려. 4 더하기 4는?"
+  ];
+
+  // AI speaks without user input (Nagging) - Optimized for speed
   async function triggerNagging() {
+    if (!isRingingRef.current) return;
+
     isProcessingRef.current = true;
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      const historyText = conversationHistory.map(h => `${h.role === 'user' ? 'User' : 'AI'}: ${h.text}`).join('\n');
+      // Pick a random phrase locally to save API latency
+      const aiText = NAGGING_PHRASES[Math.floor(Math.random() * NAGGING_PHRASES.length)];
       
-      const prompt = `
-        Current Time: ${new Date().toLocaleTimeString()}
-        User is silent. You need to wake them up.
-        
-        [HISTORY]
-        ${historyText}
-        
-        [TASK]
-        Generate a short, nagging message in Korean (Banmal).
-        Use these specific phrases randomly:
-        - "오늘 날씨 진짜 좋아." (The weather is really good today)
-        - "기분 좋게 시작하자!" (Let's start the day happily)
-        - "얼른 일어나." (Get up quickly)
-        - "자니? 대답 좀 해." (Are you sleeping? Answer me)
-        Max 20 characters.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      });
-
-      const aiText = response.text || "일어나.";
-      
-      // Generate audio FIRST
+      // Generate audio
+      // We still use Gemini TTS for quality, but we skipped the text generation step
       const blob = await generateTTSBlob(aiText);
       
-      // THEN update UI (Sync text with audio)
+      // Update UI
       setConversationHistory(prev => [...prev, { role: 'model', text: aiText }]);
       setAiResponse(aiText);
       
-      // THEN play
+      // Play
       if (blob) {
         playAudioBuffer(blob);
       } else {
         const utterance = new SpeechSynthesisUtterance(aiText);
         utterance.lang = 'ko-KR';
-        utterance.onend = () => startListening();
+        utterance.onend = () => {
+             isProcessingRef.current = false;
+             scheduleNextNag();
+        };
         window.speechSynthesis.speak(utterance);
       }
 
     } catch (e) {
       console.error("Nagging failed", e);
-      isProcessingRef.current = false;
-      startListening();
+      isProcessingRef.current = false; // Ensure reset on error
+      scheduleNextNag();
     }
+  }
+
+  function scheduleNextNag() {
+    if (!isRingingRef.current) return;
+    
+    if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+    
+    silenceTimeoutRef.current = setTimeout(() => {
+        if (isRingingRef.current) {
+            triggerNagging();
+        }
+    }, 2000);
   }
 
   async function handleUserResponse(userText: string) {
@@ -491,21 +560,21 @@ export default function AlarmPage() {
         3. STYLE: Tsundere (Cold but caring). React to user's input first, then ask a question.
         4. GOAL: WAKE USER UP. Don't just chat. Check if they are awake. If they seem sleepy, scold them.
         5. TOPICS DISTRIBUTION (Randomly pick one):
-           - Math Calculation (Simple addition/multiplication) - 10% chance
-           - Schedule Inquiry ("What's your plan today?") - 20% chance
-           - Outfit Suggestion ("It's cold, wear padding.") - 20% chance
-           - Breakfast Menu ("What are you eating?") - 20% chance
-           - Weather Comment ("Sun is nice today.") - 15% chance
+           - Math Calculation (Simple addition/multiplication) - 40% chance (PRIORITY)
+           - Schedule Inquiry ("What's your plan today?") - 10% chance
+           - Outfit Suggestion ("It's cold, wear padding.") - 10% chance
+           - Breakfast Menu ("What are you eating?") - 10% chance
+           - Weather Comment ("Sun is nice today.") - 10% chance
            - Encouragement ("Start happily!") - 10% chance
-           - Wake up command ("Get up now!") - 5% chance
+           - Wake up command ("Get up now!") - 10% chance
         6. TIKI-TAKA: If user asks a question, answer it briefly, then counter-attack with a question.
         7. MUSIC: If user asks for music/song/youtube, append "[PLAY: search_term]" at the end of response.
         
         [EXAMPLES]
-        User: "졸려" -> AI: "눈 떠. 어제 늦게 잤어?"
-        User: "날씨 어때?" -> AI: "추워. 패딩 입어. 일어났어?"
+        User: "졸려" -> AI: "눈 떠. 2 더하기 5는 뭐야?"
+        User: "날씨 어때?" -> AI: "추워. 패딩 입어. 3 곱하기 3은?"
         User: "아이유 노래 틀어줘" -> AI: "알겠어. 잠 좀 깨. [PLAY: 아이유 노래]"
-        User: "몇 시야?" -> AI: "7시. 지각하고 싶어?"
+        User: "몇 시야?" -> AI: "7시. 10 빼기 2는?"
       `;
 
       const response = await ai.models.generateContent({
@@ -539,7 +608,10 @@ export default function AlarmPage() {
       } else {
         const utterance = new SpeechSynthesisUtterance(aiText);
         utterance.lang = 'ko-KR';
-        utterance.onend = () => startListening();
+        utterance.onend = () => {
+             isProcessingRef.current = false;
+             startListening();
+        };
         window.speechSynthesis.speak(utterance);
       }
 
@@ -550,7 +622,10 @@ export default function AlarmPage() {
       setAiResponse(errorText);
       const utterance = new SpeechSynthesisUtterance(errorText);
       utterance.lang = 'ko-KR';
-      utterance.onend = () => startListening();
+      utterance.onend = () => {
+           isProcessingRef.current = false;
+           startListening();
+      };
       window.speechSynthesis.speak(utterance);
     } finally {
         // isProcessingRef.current is reset in speakText's onended or error handler
@@ -564,7 +639,18 @@ export default function AlarmPage() {
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isAlarmSet ? 'bg-black text-emerald-500' : (theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-[#F8F9FA] text-[#444444]')} flex flex-col relative overflow-hidden`}>
       
-      <audio ref={audioRef} className="hidden" preload="auto" />
+      {/* Silent video for Wake Lock fallback - Must be visible (opacity 0) to work in some browsers */}
+      <video 
+        ref={videoRef} 
+        className="opacity-0 absolute top-0 left-0 w-1 h-1 pointer-events-none" 
+        playsInline 
+        muted 
+        loop 
+        autoPlay
+      >
+        <source src="data:video/webm;base64,GkXfo0AgQoaBAUL3gQFC8oEEQvOBCEKCQAR3ZWJtQoeBAkKFgQIYU4BnQI0VSalmQCgq17FAAw9CQE2AQAZ3aGFtbXlXQUAGd2hhbW15RIlACECPQAAAAAAAFlSua0AxrkAu44FCPA==" type="video/webm" />
+        <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAAhmZGF0AAAAAA==" type="video/mp4" />
+      </video>
 
       {/* Header */}
       {!isAlarmSet && (
@@ -603,7 +689,7 @@ export default function AlarmPage() {
                   type="time" 
                   value={alarmTime}
                   onChange={(e) => setAlarmTime(e.target.value)}
-                  className={`bg-transparent text-5xl font-black font-mono text-center focus:outline-none w-full ${theme === 'dark' ? 'text-white color-scheme-dark' : 'text-zinc-900'}`}
+                  className={`bg-transparent text-4xl sm:text-5xl font-black font-mono text-center focus:outline-none w-full appearance-none ${theme === 'dark' ? 'text-white color-scheme-dark' : 'text-zinc-900'}`}
                 />
               </div>
             </div>

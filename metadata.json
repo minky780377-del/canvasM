@@ -1,5 +1,8 @@
 {
   "name": "canvasM",
   "description": "AI-powered text-to-speech studio with Gemini 3.1 & 2.5 TTS engine.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone",
+    "screen-wake-lock"
+  ]
 }
