@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Play, Settings, Key, Volume2, Download, Sun, Moon, MousePointer2, Mail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import AdBanner from '../components/AdBanner';
 
 export default function TutorialPage() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
@@ -145,6 +146,9 @@ export default function TutorialPage() {
             </p>
           </div>
         </div>
+
+        {/* Ad Banner Section */}
+        <AdBanner theme={theme} label="Advertisement" />
 
         <footer className="pt-12 border-t border-zinc-800 text-center">
           <p className="text-zinc-600 text-xs font-mono uppercase tracking-widest">

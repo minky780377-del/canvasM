@@ -2,9 +2,10 @@
 
 import React, { useState, useRef } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail } from 'lucide-react';
+import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail, Bell } from 'lucide-react';
 import Link from 'next/link';
 import PartnershipForm from './PartnershipForm';
+import AdBanner from './components/AdBanner';
 
 const VOICES = ['Puck', 'Charon', 'Kore', 'Fenrir', 'Zephyr'];
 
@@ -494,6 +495,18 @@ ${textToUse}`;
                 <HelpCircle className="w-5 h-5" />
               </Link>
 
+              <Link
+                href="/alarm"
+                className={`p-2.5 rounded-xl border transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-emerald-400 hover:border-emerald-500/50' 
+                    : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-emerald-600 hover:border-emerald-500/50 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
+                }`}
+                title="AI Alarm"
+              >
+                <Bell className="w-5 h-5" />
+              </Link>
+
               <button
                 onClick={() => setShowPartnership(true)}
                 className={`p-2.5 rounded-xl border transition-all ${
@@ -874,6 +887,9 @@ ${textToUse}`;
           </div>
 
         </main>
+
+        {/* Ad Banner Section */}
+        <AdBanner theme={theme} label="Sponsored Content" />
 
         <footer className={`max-w-4xl mx-auto px-6 py-12 border-t ${theme === 'dark' ? 'border-zinc-800' : 'border-[#E0E0E0]'} flex flex-col sm:flex-row items-center justify-between gap-6`}>
           <p className="text-zinc-600 text-[10px] font-mono uppercase tracking-widest">
