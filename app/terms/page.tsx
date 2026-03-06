@@ -16,7 +16,7 @@ export default function TermsOfService() {
             className="flex items-center gap-2 text-zinc-500 hover:text-emerald-400 transition-colors group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="font-bold font-display uppercase tracking-widest text-sm">Back to Studio</span>
+            <span className="font-bold font-display uppercase tracking-widest text-sm">Back to Home</span>
           </Link>
           
           <button

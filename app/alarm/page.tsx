@@ -50,6 +50,15 @@ const createWavBlob = (base64: string, sampleRate: number = 24000) => {
   return new Blob([buffer], { type: 'audio/wav' });
 };
 
+const Logo = ({ className }: { className?: string }) => (
+  <div className={className}>
+    <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="8" y="8" width="84" height="84" stroke="currentColor" strokeWidth="6" />
+      <path d="M8 92L38 45L52 68L78 32L92 92H8Z" fill="currentColor" />
+    </svg>
+  </div>
+);
+
 export default function AlarmPage() {
   // --- State ---
   const [currentTime, setCurrentTime] = useState<Date | null>(null); // Start null to avoid hydration mismatch
@@ -655,12 +664,16 @@ export default function AlarmPage() {
       {/* Header */}
       {!isAlarmSet && (
         <header className="p-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-zinc-500 hover:text-emerald-400 transition-colors">
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-bold font-display uppercase tracking-widest text-sm">Back</span>
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center p-2 transition-colors ${theme === 'dark' ? 'bg-zinc-900 text-emerald-400 border-zinc-800 group-hover:border-emerald-500/50' : 'bg-white text-emerald-500 shadow-sm border-zinc-200 group-hover:border-emerald-500/50'} border`}>
+              <Logo className="w-full h-full" />
+            </div>
+            <div className="flex flex-col">
+              <span className={`text-sm font-bold font-display uppercase tracking-widest ${theme === 'dark' ? 'text-zinc-100' : 'text-zinc-800'}`}>canvasM</span>
+              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest leading-none">Alarm</span>
+            </div>
           </Link>
-          <h1 className="text-xl font-bold font-display uppercase tracking-widest">AI Alarm</h1>
-          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 rounded-full hover:bg-zinc-800/10">
+          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-zinc-800/50 text-zinc-400' : 'hover:bg-zinc-100 text-zinc-500'}`}>
             {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
         </header>

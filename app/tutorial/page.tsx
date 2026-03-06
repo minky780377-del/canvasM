@@ -58,7 +58,7 @@ export default function TutorialPage() {
       <div className="max-w-4xl mx-auto space-y-12">
         <header className="flex items-center justify-between border-b border-zinc-800 pb-6">
           <Link 
-            href="/" 
+            href="/tts" 
             className="flex items-center gap-2 text-zinc-500 hover:text-emerald-400 transition-colors group"
           >
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
