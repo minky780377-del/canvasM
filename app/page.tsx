@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail, Bell } from 'lucide-react';
+import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail, Bell, Mic, MicOff } from 'lucide-react';
 import Link from 'next/link';
 import PartnershipForm from './PartnershipForm';
 import AdBanner from './components/AdBanner';
@@ -83,10 +83,12 @@ export default function VoiceActorApp() {
   const [tempKey, setTempKey] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [showPartnership, setShowPartnership] = useState(false);
+  const [isListeningMic, setIsListeningMic] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const selectionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const recognitionMicRef = useRef<any>(null);
 
   // Handle audio playback when audioData changes
   React.useEffect(() => {
@@ -420,6 +422,71 @@ ${textToUse}`;
     setStatus('WAV exported successfully.');
   };
 
+  const toggleMic = () => {
+    if (isListeningMic) {
+      if (recognitionMicRef.current) {
+        recognitionMicRef.current.stop();
+      }
+      return;
+    }
+
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("이 브라우저는 음성 인식을 지원하지 않습니다.");
+      return;
+    }
+
+    try {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionMicRef.current = recognition;
+
+      recognition.lang = 'ko-KR';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        setIsListeningMic(true);
+        setStatus('Listening...');
+      };
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          setText(prev => {
+            const newText = prev + (prev ? ' ' : '') + finalTranscript;
+            return newText.slice(0, 1500);
+          });
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Speech recognition error", event.error);
+        setIsListeningMic(false);
+        setStatus(`Error: ${event.error}`);
+      };
+
+      recognition.onend = () => {
+        setIsListeningMic(false);
+        setStatus('Mic off.');
+      };
+
+      recognition.start();
+    } catch (err) {
+      console.error("Mic start failed", err);
+      setIsListeningMic(false);
+    }
+  };
+
   return (
     <div 
       className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-[#F8F9FA] text-[#444444]'} p-4 sm:p-6 selection:bg-zinc-800 overflow-x-hidden`}
@@ -715,7 +782,20 @@ ${textToUse}`;
 
                   <div className="flex-1 relative space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.05em] font-display block ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Script</label>
+                      <div className="flex items-center gap-3">
+                        <label className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.05em] font-display block ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Script</label>
+                        <button
+                          onClick={toggleMic}
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
+                            isListeningMic 
+                              ? 'bg-red-500 text-white animate-pulse' 
+                              : theme === 'dark' ? 'bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                          }`}
+                        >
+                          {isListeningMic ? <MicOff className="w-2.5 h-2.5" /> : <Mic className="w-2.5 h-2.5" />}
+                          {isListeningMic ? 'Stop Mic' : 'Dictate'}
+                        </button>
+                      </div>
                       <button 
                         onClick={() => {
                           setText('');
