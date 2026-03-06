@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Volume2, Bell, Mail, Youtube, MapPin, Search, Calendar, Newspaper, Image as ImageIcon, Video, Languages, FileSpreadsheet, FileText, User, Triangle, Store, Sparkles, Sun, Moon } from 'lucide-react';
+import { Volume2, Bell, Mail, Youtube, MapPin, Search, Calendar, Newspaper, Image as ImageIcon, Video, Languages, FileSpreadsheet, FileText, User, Triangle, Store, Sparkles, Sun, Moon, Subtitles } from 'lucide-react';
 import Link from 'next/link';
 
 const Logo = ({ className }: { className?: string }) => (
@@ -111,6 +111,14 @@ export default function LauncherPage() {
             href="/alarm" 
             color="text-amber-500" 
             bgColor="bg-amber-50"
+            theme={theme}
+          />
+          <AppIcon 
+            icon={<Subtitles />} 
+            label="SRT 스튜디오" 
+            href="/srt" 
+            color="text-rose-500" 
+            bgColor="bg-rose-50"
             theme={theme}
           />
           <AppIcon 
