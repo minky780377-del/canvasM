@@ -84,6 +84,7 @@ export default function VoiceActorApp() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [showPartnership, setShowPartnership] = useState(false);
   const [isListeningMic, setIsListeningMic] = useState(false);
+  const [listeningTarget, setListeningTarget] = useState<'text' | 'tone' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const selectionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -422,11 +423,14 @@ ${textToUse}`;
     setStatus('WAV exported successfully.');
   };
 
-  const toggleMic = () => {
+  const toggleMic = (target: 'text' | 'tone') => {
     if (isListeningMic) {
       if (recognitionMicRef.current) {
         recognitionMicRef.current.stop();
       }
+      if (listeningTarget === target) return;
+      // If switching targets, stop current and start new one after a short delay
+      setTimeout(() => toggleMic(target), 300);
       return;
     }
 
@@ -446,37 +450,38 @@ ${textToUse}`;
 
       recognition.onstart = () => {
         setIsListeningMic(true);
-        setStatus('Listening...');
+        setListeningTarget(target);
+        setStatus(`Listening for ${target === 'text' ? 'Script' : 'Tone'}...`);
       };
 
       recognition.onresult = (event: any) => {
-        let interimTranscript = '';
         let finalTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
           }
         }
 
         if (finalTranscript) {
-          setText(prev => {
-            const newText = prev + (prev ? ' ' : '') + finalTranscript;
-            return newText.slice(0, 1500);
-          });
+          if (target === 'text') {
+            setText(prev => (prev + (prev ? ' ' : '') + finalTranscript).slice(0, 1500));
+          } else {
+            setTone(prev => (prev + (prev ? ' ' : '') + finalTranscript));
+          }
         }
       };
 
       recognition.onerror = (event: any) => {
         console.error("Speech recognition error", event.error);
         setIsListeningMic(false);
+        setListeningTarget(null);
         setStatus(`Error: ${event.error}`);
       };
 
       recognition.onend = () => {
         setIsListeningMic(false);
+        setListeningTarget(null);
         setStatus('Mic off.');
       };
 
@@ -484,6 +489,7 @@ ${textToUse}`;
     } catch (err) {
       console.error("Mic start failed", err);
       setIsListeningMic(false);
+      setListeningTarget(null);
     }
   };
 
@@ -703,13 +709,26 @@ ${textToUse}`;
               <div className="relative space-y-3 sm:space-y-4">
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-4">
                   <div className="flex items-center gap-2 w-full sm:max-w-md">
-                    <input
-                      type="text"
-                      value={tone}
-                      onChange={(e) => setTone(e.target.value)}
-                      placeholder="TONE & MOOD"
-                      className={`w-full rounded-xl px-4 py-3 text-xs sm:text-[10px] font-bold font-display uppercase tracking-[0.1em] focus:outline-none focus:border-emerald-500/50 transition-colors border ${theme === 'dark' ? 'bg-zinc-900/80 border-zinc-800 text-zinc-200 placeholder:text-zinc-600' : 'bg-white border-[#E0E0E0] text-[#444444] placeholder:text-[#888888] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'}`}
-                    />
+                    <div className="relative w-full">
+                      <input
+                        type="text"
+                        value={tone}
+                        onChange={(e) => setTone(e.target.value)}
+                        placeholder="TONE & MOOD"
+                        className={`w-full rounded-xl pl-4 pr-10 py-3 text-xs sm:text-[10px] font-bold font-display uppercase tracking-[0.1em] focus:outline-none focus:border-emerald-500/50 transition-colors border ${theme === 'dark' ? 'bg-zinc-900/80 border-zinc-800 text-zinc-200 placeholder:text-zinc-600' : 'bg-white border-[#E0E0E0] text-[#444444] placeholder:text-[#888888] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'}`}
+                      />
+                      <button
+                        onClick={() => toggleMic('tone')}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-all ${
+                          isListeningMic && listeningTarget === 'tone'
+                            ? 'text-red-500 animate-pulse'
+                            : theme === 'dark' ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-400 hover:text-zinc-600'
+                        }`}
+                        title="Dictate Tone"
+                      >
+                        {isListeningMic && listeningTarget === 'tone' ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0 px-1">
                     {text.length >= 1500 && (
@@ -785,15 +804,15 @@ ${textToUse}`;
                       <div className="flex items-center gap-3">
                         <label className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.05em] font-display block ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Script</label>
                         <button
-                          onClick={toggleMic}
+                          onClick={() => toggleMic('text')}
                           className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all ${
-                            isListeningMic 
+                            isListeningMic && listeningTarget === 'text'
                               ? 'bg-red-500 text-white animate-pulse' 
                               : theme === 'dark' ? 'bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
                           }`}
                         >
-                          {isListeningMic ? <MicOff className="w-2.5 h-2.5" /> : <Mic className="w-2.5 h-2.5" />}
-                          {isListeningMic ? 'Stop Mic' : 'Dictate'}
+                          {isListeningMic && listeningTarget === 'text' ? <MicOff className="w-2.5 h-2.5" /> : <Mic className="w-2.5 h-2.5" />}
+                          {isListeningMic && listeningTarget === 'text' ? 'Stop Mic' : 'Dictate'}
                         </button>
                       </div>
                       <button 
