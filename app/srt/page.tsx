@@ -20,7 +20,8 @@ import {
   ChevronRight,
   Settings2,
   Sun,
-  Moon
+  Moon,
+  RotateCcw
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
@@ -75,6 +76,10 @@ export default function SRTPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset state before loading new file to prevent conflicts
+    setRawText('');
+    setBlocks([]);
+    
     setIsLoading(true);
     const fileType = file.name.split('.').pop()?.toLowerCase();
 
@@ -197,6 +202,13 @@ export default function SRTPage() {
     showStatus('success', 'SRT 파일 내보내기 완료!');
   };
 
+  const resetProject = () => {
+    setRawText('');
+    setBlocks([]);
+    setActiveTab('editor');
+    showStatus('success', '작업 내역이 초기화되었습니다.');
+  };
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-zinc-950 text-zinc-100' : 'bg-slate-50 text-zinc-900'} p-4 sm:p-6 font-sans`}>
       <div className="max-w-5xl mx-auto space-y-6 sm:space-y-10">
@@ -218,6 +230,15 @@ export default function SRTPage() {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
+            <button
+              onClick={resetProject}
+              className={`p-2.5 rounded-xl border transition-all ${
+                theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-pink-400 hover:border-pink-500/30' : 'bg-white border-zinc-200 text-zinc-600 hover:text-pink-600 hover:border-pink-300 shadow-[0_4px_12px_rgba(0,0,0,0.05)] active:scale-95'
+              }`}
+              title="초기화"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
             <button
               onClick={() => setShowTutorial(true)}
               className={`p-2.5 rounded-xl border transition-all ${
@@ -297,13 +318,22 @@ export default function SRTPage() {
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h3 className={`text-lg font-black tracking-tight ${theme === 'dark' ? 'text-zinc-200' : 'text-zinc-900'}`}>원본 텍스트 편집</h3>
-                    <button
-                      onClick={generateBlocks}
-                      className={`flex items-center gap-2 px-6 py-2.5 ${theme === 'dark' ? 'bg-zinc-100 text-zinc-900 hover:bg-white' : 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-lg shadow-zinc-200'} rounded-2xl transition-all font-bold text-sm active:scale-95`}
-                    >
-                      <Settings2 size={16} />
-                      자막 블록 생성하기
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={resetProject}
+                        className={`flex items-center gap-2 px-4 py-2.5 ${theme === 'dark' ? 'bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'} rounded-2xl transition-all font-bold text-sm active:scale-95`}
+                      >
+                        <RotateCcw size={16} />
+                        초기화
+                      </button>
+                      <button
+                        onClick={generateBlocks}
+                        className={`flex items-center gap-2 px-6 py-2.5 ${theme === 'dark' ? 'bg-zinc-100 text-zinc-900 hover:bg-white' : 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-lg shadow-zinc-200'} rounded-2xl transition-all font-bold text-sm active:scale-95`}
+                      >
+                        <Settings2 size={16} />
+                        자막 블록 생성하기
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     value={rawText}
