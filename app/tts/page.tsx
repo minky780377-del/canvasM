@@ -267,9 +267,10 @@ export default function VoiceActorApp() {
       return;
     }
     
-    const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!finalApiKey) {
-      setError('API Key is missing.');
+      setError('API Key가 필요합니다. 상단의 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
+      setShowKeyModal(true);
       return;
     }
 
@@ -399,6 +400,14 @@ export default function VoiceActorApp() {
       }
     }
   }, [audioData, loadedFileName]);
+
+  // Load saved API key on mount
+  React.useEffect(() => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) {
+      setApiKey(savedKey);
+    }
+  }, []);
 
   const stopAudio = () => {
     if (abortControllerRef.current) {
@@ -535,9 +544,10 @@ export default function VoiceActorApp() {
     }
 
     // For PDF or Images, use Gemini API to extract text
-    const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!finalApiKey) {
-      setError('API Key is missing.');
+      setError('API Key가 필요합니다. 상단의 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
+      setShowKeyModal(true);
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -624,6 +634,20 @@ export default function VoiceActorApp() {
                   <span>이미지 분석 중...</span>
                 </div>
               )}
+              <button
+                onClick={() => setShowKeyModal(true)}
+                className={`p-2.5 rounded-xl border transition-all ${
+                  apiKey ? 'border-emerald-500/50 text-emerald-500' : 'border-red-500/50 text-red-500 animate-pulse'
+                } ${
+                  theme === 'dark' 
+                    ? 'bg-zinc-900 hover:bg-zinc-800' 
+                    : 'bg-white hover:bg-zinc-50 shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
+                }`}
+                title="API Key Settings"
+              >
+                <Key className="w-5 h-5" />
+              </button>
+
               <button 
                 onClick={() => setShowSettings(!showSettings)}
                 className={`p-2.5 rounded-xl border transition-all ${
@@ -1089,6 +1113,57 @@ export default function VoiceActorApp() {
               >
                 재실행 (비전으로)
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showKeyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className={`relative max-w-md w-full ${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-[#E0E0E0]'} rounded-3xl overflow-hidden shadow-2xl border animate-in fade-in zoom-in duration-300 p-6`}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-[#222222]'}`}>API Key 설정</h3>
+              <button onClick={() => setShowKeyModal(false)} className={`${theme === 'dark' ? 'text-zinc-400 hover:text-white' : 'text-zinc-500 hover:text-black'}`}>
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}`}>Gemini API Key</label>
+                <input
+                  type="password"
+                  value={tempKey}
+                  onChange={(e) => setTempKey(e.target.value)}
+                  placeholder={apiKey ? "••••••••••••••••" : "AI Studio에서 발급받은 API 키 입력"}
+                  className={`w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-colors ${
+                    theme === 'dark' 
+                      ? 'bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-600' 
+                      : 'bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400'
+                  }`}
+                />
+                <p className={`mt-2 text-xs ${theme === 'dark' ? 'text-zinc-500' : 'text-zinc-500'}`}>
+                  입력하신 키는 서버로 전송되지 않으며, 현재 브라우저(기기)에만 안전하게 저장됩니다.
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                {apiKey && (
+                  <button
+                    onClick={handleDeleteKey}
+                    className="flex-1 py-3 px-4 bg-red-500/10 text-red-500 hover:bg-red-500/20 font-bold rounded-xl transition-colors"
+                  >
+                    키 삭제 (로그아웃)
+                  </button>
+                )}
+                <button
+                  onClick={handleSaveKey}
+                  disabled={!tempKey.trim()}
+                  className="flex-1 py-3 px-4 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  저장 및 연결
+                </button>
+              </div>
             </div>
           </div>
         </div>
