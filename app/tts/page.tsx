@@ -78,16 +78,17 @@ export default function VoiceActorApp() {
   const [selectedText, setSelectedText] = useState('');
   const [floatingPos, setFloatingPos] = useState({ top: 0, left: 0 });
   const [showFloating, setShowFloating] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [tempKey, setTempKey] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [showPartnership, setShowPartnership] = useState(false);
   const [isListeningMic, setIsListeningMic] = useState(false);
   const [listeningTarget, setListeningTarget] = useState<'text' | 'tone' | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
+  const [visionError, setVisionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [tempKey, setTempKey] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [showKeyModal, setShowKeyModal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const selectionTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -109,14 +110,6 @@ export default function VoiceActorApp() {
       }
     }
   }, [audioData]);
-
-  // Load API Key from LocalStorage on mount
-  React.useEffect(() => {
-    const savedKey = localStorage.getItem('gemini_api_key');
-    if (savedKey) {
-      setApiKey(savedKey);
-    }
-  }, []);
 
   // Cleanup timer on unmount
   React.useEffect(() => {
@@ -274,9 +267,9 @@ export default function VoiceActorApp() {
       return;
     }
     
-    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!finalApiKey) {
-      setShowKeyModal(true);
+      setError('API Key is missing.');
       return;
     }
 
@@ -294,26 +287,17 @@ export default function VoiceActorApp() {
     try {
       const ai = new GoogleGenAI({ apiKey: finalApiKey });
       
-      const promptText = `[STUDIO MODE: HIGH-FIDELITY TTS]
-Role: Professional Voice Actor / High-End Speech Synthesis Engine.
-Task: Generate a pristine, artifact-free audio recording of the provided script.
-
-CRITICAL RULES:
-1. READ THE SCRIPT EXACTLY. Do not add any commentary, greetings, or extra words.
-2. CONSISTENCY: Maintain 100% consistent vocal energy, volume, and clarity from the first word to the very last.
-3. NO DRIFT: Prevent any robotic tone or digital distortion, especially towards the end of longer scripts.
-4. TONE REFLECTION: Deeply embody the requested Tone/Mood with professional nuance.
-5. FRESH START: Treat this as a standalone, high-priority studio session.
-
-TONE/MOOD: ${tone || 'Natural and professional'}
-VOICE: ${voice}
-
-SCRIPT:
-${textToUse}`;
+      // 1. Remove markdown and special characters for the TTS model
+      // Keep Korean, English, numbers, basic punctuation (.,!?), and spaces
+      const cleanTextForTTS = textToUse
+        .replace(/[*_~`#>-]/g, '') // Remove markdown symbols
+        .replace(/[^\w\s가-힣.,!?]/g, '') // Remove emojis and other special chars
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .trim();
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-preview-tts',
-        contents: [{ parts: [{ text: promptText }] }],
+        contents: [{ parts: [{ text: cleanTextForTTS }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -366,7 +350,11 @@ ${textToUse}`;
 
         setAudioData({ url, mimeType: finalMimeType, blob });
         setStatus(`Audio generated: ${finalMimeType}`);
-        setSuccessMessage(`--- "${loadedFileName || '작성된 텍스트'}" 기반 음성 생성 완료. 하단에서 다운로드 받으세요 ---`);
+        if (loadedFileName === 'Vision Captured Image') {
+          setSuccessMessage(`--- 이미지 텍스트 추출 및 음성 생성 완료 ---`);
+        } else {
+          setSuccessMessage(`--- "${loadedFileName || '작성된 텍스트'}" 기반 음성 생성 완료. 하단에서 다운로드 받으세요 ---`);
+        }
       } else {
         throw new Error('No audio data received from the model.');
       }
@@ -377,6 +365,40 @@ ${textToUse}`;
       setIsGenerating(false);
     }
   };
+
+  React.useEffect(() => {
+    const visionText = sessionStorage.getItem('visionText');
+    if (visionText) {
+      sessionStorage.removeItem('visionText');
+      setText(prev => (prev + (prev ? '\n' : '') + visionText));
+      setLoadedFileName('Vision Captured Image');
+      setStatus('텍스트 수신 완료. 잠시 후 음성 생성을 시작합니다...');
+      
+      // Add a slight delay to ensure the component is fully mounted and state is settled
+      // This helps prevent the initial API call from failing due to race conditions
+      setTimeout(() => {
+        handleGenerateSpecific(visionText);
+      }, 500);
+    }
+  }, []);
+
+  // Auto-play when audio data is ready and we came from the vision page
+  React.useEffect(() => {
+    if (audioData?.url && loadedFileName === 'Vision Captured Image' && audioRef.current) {
+      // Attempt to auto-play. This might still be blocked by the browser if the user
+      // hasn't interacted with *this specific page* yet, but since they clicked a button
+      // on the previous page, some browsers might allow it.
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setIsPlaying(true);
+        }).catch(error => {
+          console.log("Auto-play was prevented by the browser:", error);
+          // We don't show an error to the user, they can just click play manually.
+        });
+      }
+    }
+  }, [audioData, loadedFileName]);
 
   const stopAudio = () => {
     if (abortControllerRef.current) {
@@ -513,9 +535,9 @@ ${textToUse}`;
     }
 
     // For PDF or Images, use Gemini API to extract text
-    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (!finalApiKey) {
-      setShowKeyModal(true);
+      setError('API Key is missing.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -532,7 +554,7 @@ ${textToUse}`;
           const ai = new GoogleGenAI({ apiKey: finalApiKey });
           
           const response = await ai.models.generateContent({
-            model: 'gemini-3.1-flash-preview',
+            model: 'gemini-3.1-pro-preview',
             contents: [
               {
                 parts: [
@@ -596,25 +618,12 @@ ${textToUse}`;
           </div>
           <div className="flex flex-row sm:flex-col items-center sm:items-end justify-end sm:justify-center gap-3 w-full sm:w-auto">
             <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={() => {
-                  setTempKey(apiKey);
-                  setShowKeyModal(true);
-                }}
-                className={`p-2.5 rounded-xl border transition-all relative group ${
-                  apiKey 
-                    ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
-                    : theme === 'dark' ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-[#222222] hover:border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
-                }`}
-                title={apiKey ? "API Key is active." : "Please enter your API Key."}
-              >
-                <Key className="w-5 h-5" />
-                {/* Tooltip */}
-                <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 ${theme === 'dark' ? 'bg-zinc-800 text-zinc-200 border-zinc-700' : 'bg-white text-[#444444] border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap border`}>
-                  {apiKey ? "API Key is active." : "Please enter your API Key."}
+              {isExtracting && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-bold animate-pulse">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>이미지 분석 중...</span>
                 </div>
-              </button>
-
+              )}
               <button 
                 onClick={() => setShowSettings(!showSettings)}
                 className={`p-2.5 rounded-xl border transition-all ${
@@ -676,67 +685,11 @@ ${textToUse}`;
               </button>
             </div>
             <div className="hidden sm:flex flex-col items-end gap-1 mt-auto">
-              <p className="text-[10px] text-zinc-500 font-mono leading-tight uppercase tracking-wider text-right">App Engine: gemini-3.1-flash-preview</p>
+              <p className="text-[10px] text-zinc-500 font-mono leading-tight uppercase tracking-wider text-right">App Engine: gemini-3.1-pro-preview</p>
               <p className="text-[10px] text-emerald-500/80 font-mono leading-tight uppercase tracking-wider text-right">S Engine: gemini-2.5-flash-preview-tts</p>
             </div>
           </div>
         </header>
-
-        {/* API Key Modal */}
-        {showKeyModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className={`${theme === 'dark' ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/10 rounded-lg">
-                    <Key className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <h3 className={`font-bold font-display uppercase tracking-widest text-sm ${theme === 'dark' ? 'text-zinc-100' : 'text-[#222222]'}`}>API Key Management</h3>
-                </div>
-                <button 
-                  onClick={() => setShowKeyModal(false)}
-                  className={`p-2 ${theme === 'dark' ? 'hover:bg-zinc-800 text-zinc-500' : 'hover:bg-zinc-100 text-[#444444]'} rounded-lg transition-colors`}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <p className={`text-xs leading-relaxed ${theme === 'dark' ? 'text-zinc-400' : 'text-[#444444]'}`}>
-                  Please enter your Gemini API Key. It will be stored safely in your browser&apos;s local storage.
-                </p>
-                
-                <div className="space-y-2">
-                  <label className={`text-[10px] font-bold uppercase tracking-widest font-display ${theme === 'dark' ? 'text-zinc-500' : 'text-[#222222]'}`}>Your API Key</label>
-                  <input
-                    type="password"
-                    value={tempKey}
-                    onChange={(e) => setTempKey(e.target.value)}
-                    placeholder="Enter your API key here..."
-                    className={`w-full ${theme === 'dark' ? 'bg-zinc-950 border-zinc-800 text-zinc-200' : 'bg-white border-[#E0E0E0] text-[#444444] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-xl px-4 py-3 text-sm placeholder:text-zinc-600 focus:outline-none focus:border-emerald-500/50 transition-colors`}
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={handleSaveKey}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest shadow-[0_2px_4px_rgba(0,0,0,0.05)]"
-                >
-                  Save Key
-                </button>
-                {apiKey && (
-                  <button
-                    onClick={handleDeleteKey}
-                    className={`px-4 ${theme === 'dark' ? 'bg-zinc-800 border-zinc-700 text-zinc-400' : 'bg-white border-[#E0E0E0] text-[#444444] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-widest border`}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {showSettings && (
           <div className={`${theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800' : 'bg-white border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-2xl p-6 animate-in fade-in slide-in-from-top-4 duration-300`}>
@@ -901,7 +854,7 @@ ${textToUse}`;
                           title="Upload TXT, PDF, or Image to extract text"
                         >
                           {isExtracting ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
-                          {isExtracting ? 'Extracting...' : 'Load File'}
+                          {isExtracting ? (loadedFileName === 'Vision Captured Image' ? 'Processing...' : 'Extracting...') : 'Load File'}
                         </button>
                         <input 
                           type="file" 
@@ -1108,6 +1061,38 @@ ${textToUse}`;
           </div>
         </footer>
       </div>
+
+      {visionError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative max-w-sm w-full bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl border border-zinc-800 animate-in fade-in zoom-in duration-300 p-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+              <X className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">오류 발생</h3>
+            <p className="text-zinc-400 text-sm mb-6">{visionError}</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setVisionError(null)}
+                className="flex-1 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm rounded-xl transition-colors"
+              >
+                확인
+              </button>
+              <button 
+                onClick={() => {
+                  setVisionError(null);
+                  // Retry logic: we need the original image.
+                  // For a robust retry, we might need to store the base64Image in state.
+                  // For now, navigating back to vision is a safe fallback.
+                  window.location.href = '/vision';
+                }}
+                className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm rounded-xl transition-colors shadow-lg shadow-emerald-500/20"
+              >
+                재실행 (비전으로)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <PartnershipForm 
         isOpen={showPartnership} 

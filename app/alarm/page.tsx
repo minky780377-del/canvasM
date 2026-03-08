@@ -68,7 +68,6 @@ export default function AlarmPage() {
   const [transcript, setTranscript] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [isListening, setIsListening] = useState(false);
-  const [apiKey, setApiKey] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [conversationHistory, setConversationHistory] = useState<{role: string, text: string}[]>([]);
@@ -96,8 +95,6 @@ export default function AlarmPage() {
   // Initialize
   useEffect(() => {
     setCurrentTime(new Date());
-    const savedKey = localStorage.getItem('gemini_api_key');
-    if (savedKey) setApiKey(savedKey);
 
     if ('getBattery' in navigator) {
       (navigator as any).getBattery().then((battery: any) => {
@@ -172,7 +169,12 @@ export default function AlarmPage() {
   // Helper: Generate TTS Blob
   async function generateTTSBlob(text: string): Promise<Blob | null> {
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!finalApiKey) {
+        console.error("API Key is missing.");
+        return null;
+      }
+      const ai = new GoogleGenAI({ apiKey: finalApiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-preview-tts',
         contents: [{ parts: [{ text }] }],
@@ -226,8 +228,9 @@ export default function AlarmPage() {
   }
 
   async function handleSetAlarm() {
-    if (!apiKey) {
-      alert('Please set your API Key in the main settings first.');
+    const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!finalApiKey) {
+      alert('API Key is missing.');
       return;
     }
     await requestWakeLock();
@@ -552,7 +555,12 @@ export default function AlarmPage() {
     setAiResponse("..."); // Show thinking state
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!finalApiKey) {
+        setAiResponse("API Key is missing.");
+        return;
+      }
+      const ai = new GoogleGenAI({ apiKey: finalApiKey });
       
       const historyText = newHistory.map(h => `${h.role === 'user' ? 'User' : 'AI'}: ${h.text}`).join('\n');
 
@@ -587,7 +595,7 @@ export default function AlarmPage() {
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.1-pro-preview',
         contents: [
             { role: 'user', parts: [{ text: systemInstruction }] }
         ]
