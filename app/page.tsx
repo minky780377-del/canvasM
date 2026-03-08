@@ -5,7 +5,7 @@ import {
   Volume2, Bell, Mail, Youtube, MapPin, Search, Calendar, Newspaper, 
   Image as ImageIcon, Video, Languages, FileSpreadsheet, FileText, 
   User, Triangle, Store, Sparkles, Sun, Moon, Subtitles, Phone, 
-  MessageCircle, Plus, Trash2, X, ExternalLink, GripVertical
+  MessageCircle, Plus, Trash2, X, ExternalLink, GripVertical, ZoomIn
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'motion/react';
@@ -40,7 +40,8 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Store: <Store />,
   Plus: <Plus />,
   Trash2: <Trash2 />,
-  X: <X />
+  X: <X />,
+  ZoomIn: <ZoomIn />
 };
 
 interface AppData {
@@ -56,6 +57,7 @@ interface AppData {
 const INITIAL_APPS: AppData[] = [
   { id: 'tts', icon: 'Volume2', label: 'TTS 스튜디오', href: '/tts', color: 'text-emerald-500', bgColor: 'bg-emerald-50', isProtected: true },
   { id: 'alarm', icon: 'Bell', label: 'AI 알람', href: '/alarm', color: 'text-amber-500', bgColor: 'bg-amber-50', isProtected: true },
+  { id: 'vision', icon: 'ZoomIn', label: 'Vision 스튜디오', href: '/vision', color: 'text-blue-500', bgColor: 'bg-blue-50', isProtected: true },
   { id: 'srt', icon: 'Subtitles', label: 'SRT 스튜디오', href: '/srt', color: 'text-rose-500', bgColor: 'bg-rose-50', isProtected: true },
   { id: 'gemini', icon: 'Sparkles', label: 'Gemini', href: 'https://gemini.google.com', color: 'text-indigo-500', bgColor: 'bg-indigo-50' },
   { id: 'call', icon: 'Phone', label: '전화 걸기', href: 'tel:010-0000-0000', color: 'text-emerald-500', bgColor: 'bg-emerald-50' },

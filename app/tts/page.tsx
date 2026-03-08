@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail, Bell, Mic, MicOff } from 'lucide-react';
+import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail, Bell, Mic, MicOff, Upload } from 'lucide-react';
 import Link from 'next/link';
 import PartnershipForm from '../PartnershipForm';
 import AdBanner from '../components/AdBanner';
@@ -85,11 +85,15 @@ export default function VoiceActorApp() {
   const [showPartnership, setShowPartnership] = useState(false);
   const [isListeningMic, setIsListeningMic] = useState(false);
   const [listeningTarget, setListeningTarget] = useState<'text' | 'tone' | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const selectionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const recognitionMicRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle audio playback when audioData changes
   React.useEffect(() => {
@@ -231,12 +235,6 @@ export default function VoiceActorApp() {
     }
 
     if (start !== end) {
-      // Limit selection to 1500 characters
-      if (end - start > 1500) {
-        end = start + 1500;
-        target.setSelectionRange(start, end);
-      }
-
       const selection = target.value.substring(start, end);
       setSelectedText(selection);
 
@@ -287,6 +285,7 @@ export default function VoiceActorApp() {
     setIsGenerating(true);
     setAudioData(null);
     setShowFloating(false);
+    setSuccessMessage(null);
 
     // Create a new AbortController for this request
     const controller = new AbortController();
@@ -367,6 +366,7 @@ ${textToUse}`;
 
         setAudioData({ url, mimeType: finalMimeType, blob });
         setStatus(`Audio generated: ${finalMimeType}`);
+        setSuccessMessage(`--- "${loadedFileName || '작성된 텍스트'}" 기반 음성 생성 완료. 하단에서 다운로드 받으세요 ---`);
       } else {
         throw new Error('No audio data received from the model.');
       }
@@ -465,7 +465,7 @@ ${textToUse}`;
 
         if (finalTranscript) {
           if (target === 'text') {
-            setText(prev => (prev + (prev ? ' ' : '') + finalTranscript).slice(0, 1500));
+            setText(prev => (prev + (prev ? ' ' : '') + finalTranscript));
           } else {
             setTone(prev => (prev + (prev ? ' ' : '') + finalTranscript));
           }
@@ -490,6 +490,89 @@ ${textToUse}`;
       console.error("Mic start failed", err);
       setIsListeningMic(false);
       setListeningTarget(null);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // For plain text files, read directly
+    if (file.type === 'text/plain') {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target?.result as string;
+        setText(prev => (prev + (prev ? '\n' : '') + content));
+        setLoadedFileName(file.name);
+        setStatus('Text loaded from file.');
+        setSuccessMessage(null);
+      };
+      reader.readAsText(file);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    // For PDF or Images, use Gemini API to extract text
+    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (!finalApiKey) {
+      setShowKeyModal(true);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setIsExtracting(true);
+    setStatus('Extracting text from file...');
+    setError('');
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = (e.target?.result as string).split(',')[1];
+          const ai = new GoogleGenAI({ apiKey: finalApiKey });
+          
+          const response = await ai.models.generateContent({
+            model: 'gemini-3.1-flash-preview',
+            contents: [
+              {
+                parts: [
+                  {
+                    inlineData: {
+                      data: base64Data,
+                      mimeType: file.type,
+                    }
+                  },
+                  {
+                    text: 'Extract all the text from this document/image. Return ONLY the extracted text, without any markdown formatting or additional comments. If it is Korean, keep it in Korean.'
+                  }
+                ]
+              }
+            ]
+          });
+
+          const extractedText = response.text || '';
+          if (extractedText) {
+             setText(prev => (prev + (prev ? '\n' : '') + extractedText));
+             setLoadedFileName(file.name);
+             setStatus('Text extracted successfully.');
+             setSuccessMessage(null);
+          } else {
+             setError('No text could be extracted from the file.');
+          }
+        } catch (err: any) {
+          console.error(err);
+          setError(err.message || 'Failed to extract text.');
+        } finally {
+          setIsExtracting(false);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Failed to read file.');
+      setIsExtracting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -731,13 +814,8 @@ ${textToUse}`;
                     </div>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0 px-1">
-                    {text.length >= 1500 && (
-                      <span className="text-[8px] sm:text-[10px] text-amber-500 font-bold animate-pulse">
-                        MAX LIMIT
-                      </span>
-                    )}
-                    <span className={`text-[8px] sm:text-[10px] font-bold font-display uppercase tracking-wider ${text.length >= 1500 ? 'text-amber-500' : 'text-zinc-600'}`}>
-                      {text.length} / 1500
+                    <span className={`text-[8px] sm:text-[10px] font-bold font-display uppercase tracking-wider text-zinc-600`}>
+                      {text.length} 자
                     </span>
                   </div>
                 </div>
@@ -814,11 +892,31 @@ ${textToUse}`;
                           {isListeningMic && listeningTarget === 'text' ? <MicOff className="w-2.5 h-2.5" /> : <Mic className="w-2.5 h-2.5" />}
                           {isListeningMic && listeningTarget === 'text' ? 'Stop Mic' : 'Dictate'}
                         </button>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isExtracting}
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                            theme === 'dark' ? 'bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                          }`}
+                          title="Upload TXT, PDF, or Image to extract text"
+                        >
+                          {isExtracting ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
+                          {isExtracting ? 'Extracting...' : 'Load File'}
+                        </button>
+                        <input 
+                          type="file" 
+                          ref={fileInputRef} 
+                          onChange={handleFileUpload} 
+                          accept=".txt,application/pdf,image/*" 
+                          className="hidden" 
+                        />
                       </div>
                       <button 
                         onClick={() => {
                           setText('');
                           setAudioData(null);
+                          setLoadedFileName(null);
+                          setSuccessMessage(null);
                           setStatus('Editor cleared.');
                         }}
                         className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-[0.05em] transition-colors flex items-center gap-1 ${theme === 'dark' ? 'text-zinc-500 hover:text-red-400' : 'text-[#444444] hover:text-red-500'}`}
@@ -830,12 +928,19 @@ ${textToUse}`;
                     <textarea
                       ref={textareaRef}
                       value={text}
-                      onChange={(e) => setText(e.target.value.slice(0, 1500))}
+                      onChange={(e) => {
+                        setText(e.target.value);
+                        setSuccessMessage(null);
+                      }}
                       onSelect={handleSelect}
-                      maxLength={1500}
                       placeholder="Enter the text to be read here..."
                       className={`w-full h-[220px] sm:h-[400px] ${theme === 'dark' ? 'bg-zinc-900/50 border-zinc-800 text-zinc-200' : 'bg-white border-[#E0E0E0] text-[#444444] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'} border rounded-2xl p-5 sm:p-8 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 resize-none transition-all text-base sm:text-lg leading-relaxed`}
                     />
+                    {successMessage && (
+                      <div className={`mt-2 p-3 rounded-xl text-center text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-2 ${theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-teal-50 text-teal-700 border border-teal-200'}`}>
+                        {successMessage}
+                      </div>
+                    )}
 
                     {/* Mobile Voice Selection and Generate Button */}
                     <div className="sm:hidden flex flex-col gap-4 mt-4">
