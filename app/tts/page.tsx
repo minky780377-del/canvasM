@@ -86,6 +86,22 @@ export default function VoiceActorApp() {
   const [loadedFileName, setLoadedFileName] = useState<string | null>(null);
   const [visionError, setVisionError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  /*
+   * ============================================================================
+   * [CRITICAL WARNING - DO NOT MODIFY OR DELETE]
+   * API KEY MANAGEMENT LOGIC (BYOK - Bring Your Own Key)
+   * ============================================================================
+   * 1. 안전한 운영 상태:
+   *    - 이 서비스는 개인이 본인의 API 키를 직접 입력하여 사용하는 구조입니다.
+   *    - 입력된 API 키는 서버로 전송되지 않으며, 오직 사용자의 브라우저(localStorage)에만 안전하게 저장됩니다.
+   *    - API 호출 시 클라이언트 측에서 직접 Google Gemini API로 전송되므로 백엔드 유출 위험이 없습니다.
+   * 2. 삭제 불필요성 및 임의 수정 금지:
+   *    - 이 로직은 서비스의 핵심 정체성이며, 보안 가이드라인(환경변수 사용 권장)을 이유로 임의 삭제해서는 절대 안 됩니다.
+   *    - 사용자가 직접 키를 등록, 삭제, 재로그인할 수 있는 현재의 UI와 로직을 반드시 유지해야 합니다.
+   *    - 어떠한 경우에도 사용자의 명시적인 허락 없이 이 부분을 수정하거나 제거하지 마십시오.
+   * ============================================================================
+   */
   const [tempKey, setTempKey] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showKeyModal, setShowKeyModal] = useState(false);
@@ -267,7 +283,7 @@ export default function VoiceActorApp() {
       return;
     }
     
-    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = apiKey;
     if (!finalApiKey) {
       setError('API Key가 필요합니다. 상단의 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
       setShowKeyModal(true);
@@ -544,7 +560,7 @@ export default function VoiceActorApp() {
     }
 
     // For PDF or Images, use Gemini API to extract text
-    const finalApiKey = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = apiKey;
     if (!finalApiKey) {
       setError('API Key가 필요합니다. 상단의 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
       setShowKeyModal(true);

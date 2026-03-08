@@ -92,16 +92,6 @@ export default function VisionApp() {
     }
   };
 
-  const handleKeySelect = async () => {
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
-      try {
-        await (window as any).aistudio.openSelectKey();
-      } catch (e) {
-        console.error("Failed to open key selection dialog", e);
-      }
-    }
-  };
-
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
@@ -206,9 +196,9 @@ export default function VisionApp() {
   };
 
   const extractTextFromImage = async (base64Image: string) => {
-    const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = localStorage.getItem('gemini_api_key');
     if (!finalApiKey) {
-      setExtractionError('API Key is missing.');
+      setExtractionError('API Key가 필요합니다. 메인 화면에서 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
       return;
     }
 
@@ -355,13 +345,6 @@ export default function VisionApp() {
               title="Toggle Theme"
             >
               {theme === 'dark' ? <Sun className="w-4 h-4 sm:w-5 sm:h-5" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5" />}
-            </button>
-            <button
-              onClick={handleKeySelect}
-              className={`p-2.5 sm:p-3 rounded-xl transition-all shadow-lg ${theme === 'dark' ? 'bg-zinc-900 text-zinc-400 hover:text-zinc-100 shadow-black/50' : 'bg-white text-[#888888] hover:text-[#222222] shadow-zinc-200/50'}`}
-              title="Select API Key"
-            >
-              <Key className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </header>

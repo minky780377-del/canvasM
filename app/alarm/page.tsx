@@ -169,7 +169,7 @@ export default function AlarmPage() {
   // Helper: Generate TTS Blob
   async function generateTTSBlob(text: string): Promise<Blob | null> {
     try {
-      const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      const finalApiKey = localStorage.getItem('gemini_api_key');
       if (!finalApiKey) {
         console.error("API Key is missing.");
         return null;
@@ -228,9 +228,9 @@ export default function AlarmPage() {
   }
 
   async function handleSetAlarm() {
-    const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const finalApiKey = localStorage.getItem('gemini_api_key');
     if (!finalApiKey) {
-      alert('API Key is missing.');
+      alert('API Key가 필요합니다. 메인 화면에서 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
       return;
     }
     await requestWakeLock();
@@ -555,9 +555,9 @@ export default function AlarmPage() {
     setAiResponse("..."); // Show thinking state
 
     try {
-      const finalApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      const finalApiKey = localStorage.getItem('gemini_api_key');
       if (!finalApiKey) {
-        setAiResponse("API Key is missing.");
+        setAiResponse("API Key가 필요합니다.");
         return;
       }
       const ai = new GoogleGenAI({ apiKey: finalApiKey });
