@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { GoogleGenAI, Modality } from '@google/genai';
-import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail, Bell, Mic, MicOff, Upload } from 'lucide-react';
+import { Download, Loader2, Settings, Volume2, ChevronDown, ChevronUp, Square, Key, X, Sun, Moon, HelpCircle, Mail, Bell, Mic, MicOff, Upload, Home } from 'lucide-react';
 import Link from 'next/link';
 import PartnershipForm from '../PartnershipForm';
 import AdBanner from '../components/AdBanner';
@@ -283,7 +283,7 @@ export default function VoiceActorApp() {
       return;
     }
     
-    const finalApiKey = apiKey;
+    const finalApiKey = apiKey || localStorage.getItem('gemini_api_key');
     if (!finalApiKey) {
       setError('API Key가 필요합니다. 상단의 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
       setShowKeyModal(true);
@@ -306,15 +306,25 @@ export default function VoiceActorApp() {
       
       // 1. Remove markdown and special characters for the TTS model
       // Keep Korean, English, numbers, basic punctuation (.,!?), and spaces
-      const cleanTextForTTS = textToUse
+      let cleanTextForTTS = textToUse
         .replace(/[*_~`#>-]/g, '') // Remove markdown symbols
-        .replace(/[^\w\s가-힣.,!?]/g, '') // Remove emojis and other special chars
+        .replace(/[^\w\s가-힣ㄱ-ㅎㅏ-ㅣ.,!?]/g, '') // Remove emojis and other special chars
         .replace(/\s+/g, ' ') // Normalize spaces
         .trim();
 
+      if (!cleanTextForTTS) {
+        // If everything was stripped, fallback to the original text
+        cleanTextForTTS = textToUse.trim();
+      }
+      
+      if (!cleanTextForTTS) {
+        throw new Error('읽을 수 있는 텍스트가 없습니다.');
+      }
+
+      const promptPrefix = tone.trim() ? `Say ${tone.trim()}: ` : 'Say: ';
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-preview-tts',
-        contents: [{ parts: [{ text: cleanTextForTTS }] }],
+        contents: [{ parts: [{ text: `${promptPrefix}${cleanTextForTTS}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -377,7 +387,15 @@ export default function VoiceActorApp() {
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'An error occurred during generation.');
+      let errorMessage = err.message || 'An error occurred during generation.';
+      
+      // Handle the specific error when the model returns text instead of audio
+      // This usually happens when the text triggers safety filters or is unsupported
+      if (errorMessage.includes('model returned non-audio response') || errorMessage.includes('AudioOut model')) {
+        errorMessage = '오류: 입력하신 텍스트를 음성으로 변환할 수 없습니다. 텍스트에 부적절한 내용이 포함되어 있거나 지원되지 않는 형식일 수 있습니다. 내용을 수정 후 다시 시도해주세요.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsGenerating(false);
     }
@@ -560,7 +578,7 @@ export default function VoiceActorApp() {
     }
 
     // For PDF or Images, use Gemini API to extract text
-    const finalApiKey = apiKey;
+    const finalApiKey = apiKey || localStorage.getItem('gemini_api_key');
     if (!finalApiKey) {
       setError('API Key가 필요합니다. 상단의 열쇠 아이콘을 눌러 API 키를 입력해주세요.');
       setShowKeyModal(true);
@@ -687,6 +705,18 @@ export default function VoiceActorApp() {
               >
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
+
+              <Link
+                href="/"
+                className={`p-2.5 rounded-xl border transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700' 
+                    : 'bg-white border-[#E0E0E0] text-[#444444] hover:text-[#222222] hover:border-[#E0E0E0] shadow-[0_2px_4px_rgba(0,0,0,0.05)]'
+                }`}
+                title="Home"
+              >
+                <Home className="w-5 h-5" />
+              </Link>
 
               <Link
                 href="/tutorial"

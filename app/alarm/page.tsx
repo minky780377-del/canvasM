@@ -169,6 +169,11 @@ export default function AlarmPage() {
   // Helper: Generate TTS Blob
   async function generateTTSBlob(text: string): Promise<Blob | null> {
     try {
+      if (!text || !text.trim()) {
+        console.error("TTS Generation Error: Text is empty");
+        return null;
+      }
+      
       const finalApiKey = localStorage.getItem('gemini_api_key');
       if (!finalApiKey) {
         console.error("API Key is missing.");
@@ -177,7 +182,7 @@ export default function AlarmPage() {
       const ai = new GoogleGenAI({ apiKey: finalApiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-preview-tts',
-        contents: [{ parts: [{ text }] }],
+        contents: [{ parts: [{ text: `Say: ${text}` }] }],
         config: {
           responseModalities: [Modality.AUDIO],
           speechConfig: {
@@ -192,8 +197,12 @@ export default function AlarmPage() {
       if (part?.inlineData?.data) {
         return createWavBlob(part.inlineData.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("TTS Generation Error:", error);
+      const errorMessage = error.message || '';
+      if (errorMessage.includes('model returned non-audio response') || errorMessage.includes('AudioOut model')) {
+        console.error("TTS Generation Error: The text was rejected by the model (possibly due to safety filters or unsupported content).");
+      }
     }
     return null;
   }
